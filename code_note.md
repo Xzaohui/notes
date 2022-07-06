@@ -1,4 +1,6 @@
-# 堆 heapq
+# python
+
+## 堆 heapq
 ```python
 def __lt__(self, other):
             return self.val < other.val
@@ -320,6 +322,55 @@ def right_rotation(root):
 
 
 
+## 红黑树
 
+前身是4阶B树
 
+```py
+def RedBlackTree():
+    
+```
+
+# 贪心
+
+## 分发糖果
+
+评分高的孩子获得更多的糖果。
+
+一次是从左到右遍历，只比较右边孩子评分比左边大的情况。
+
+一次是从右到左遍历，只比较左边孩子评分比右边大的情况。
+
+```py
+class Solution:
+    def candy(self, ratings: List[int]) -> int:
+        candyVec = [1] * len(ratings)
+        for i in range(1, len(ratings)):
+            if ratings[i] > ratings[i - 1]:
+                candyVec[i] = candyVec[i - 1] + 1
+        for j in range(len(ratings) - 2, -1, -1):
+            if ratings[j] > ratings[j + 1]:
+                candyVec[j] = max(candyVec[j], candyVec[j + 1] + 1)
+        return sum(candyVec)
+```
+
+# dp
+
+## 跳表问题
+
+```py
+for i in range(len(nums)-2,-1,-1):
+    jump[i]=min([jump[j] for j in range(i+1,min(i+nums[i]+1,len(nums)))])+1
+return jump[0]
+```
+## 买卖股票的最佳时机含手续费
+```py
+dp1 = [0 for _ in range(n)]#第i天手上有股票时的最大收益
+dp2 = [0 for _ in range(n)]#第i天手上无股票时的最大收益
+dp1[0] = -prices[0]
+for i in range(1,n):
+    dp1[i] = max(dp1[i-1], dp2[i-1] - prices[i]) #准备抄底
+    dp2[i] = max(dp2[i-1], dp1[i-1] + prices[i] - fee) #见好就收
+return max(dp1[n-1], dp2[n-1])
+```
 
