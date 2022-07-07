@@ -385,191 +385,95 @@ $P(I \mid O)=\frac{1}{Z(O)} \prod_{i} \psi_{i}\left(I_{i} \mid O\right)=\frac{1}
    CRF不仅解决了HMM输出独立性假设的问题，还解决了MEMM的标注偏置问题，MEMM容易陷入局部最优是因为只在局部做归一化，而CRF统计了全局概率，在做归一化时考虑了数据在全局的分布，而不是仅仅在局部归一化，这样就解决了MEMM中的标记偏置的问题。使得序列标注的解码变得最优解。HMM、MEMM属于有向图，所以考虑了x与y的影响，但没讲x当做整体考虑进去（这点问题应该只有HMM）。CRF属于无向图，没有这种依赖性，克服此问题。
 
 
-# 注意力机制
 
-## 注意力评分函数
-注意力评分函数（attention scoring function）， 简称评分函数（scoring function）， 然后把这个函数的输出结果输入到softmax函数中进行运算。 通过上述步骤，我们将得到与键对应的值的概率分布（即注意力权重）。 最后，注意力汇聚的输出就是基于这些注意力权重的值的加权和。
+# TF-IDF
+TF-IDF(Term Frequency-Inverse Document Frequency, 词频-逆文件频率)是一种用于资讯检索与资讯探勘的常用加权技术。TF-IDF是一种统计方法，用以评估一字词对于一个文件集或一个语料库中的其中一份文件的重要程度。字词的重要性随着它在文件中出现的次数成正比增加，但同时会随着它在语料库中出现的频率成反比下降。
 
-![Alt](https://zh.d2l.ai/_images/attention-output.svg)
+简单来说就是：一个词语在一篇文章中出现次数越多, 同时在所有文档中出现次数越少, 越能够代表该文章。这也就是TF-IDF的含义。
+## TF(Term Frequency)
+词频（TF）表示词条（关键字）在文本中出现的频率。这个数字通常会被归一化(一般是词频除以文章总词数), 以防止它偏向长的文件。
+## IDF(Inverse Document Frequency)
+逆向文件频率 (IDF) ：某一特定词语的IDF，可以由总文件数目除以包含该词语的文件的数目，再将得到的商取对数得到。
 
-用数学语言描述，假设有一个查询 $\mathbf{q} \in \mathbb{R}^{q}$ 和 $m$ 个"键一值"对 $\left(\mathbf{k}_{1}, \mathbf{v}_{1}\right), \ldots,\left(\mathbf{k}_{m}, \mathbf{v}_{m}\right)$, 其中 $\mathbf{k}_{i} \in \mathbb{R}^{k}, \mathbf{v}_{i} \in \mathbb{R}^{v}$ 。 注意 力汇聚函数 $f$ 就被表示成值的加权和：
-$$
-f\left(\mathbf{q},\left(\mathbf{k}_{1}, \mathbf{v}_{1}\right), \ldots,\left(\mathbf{k}_{m}, \mathbf{v}_{m}\right)\right)=\sum_{i=1}^{m} \alpha\left(\mathbf{q}, \mathbf{k}_{i}\right) \mathbf{v}_{i} \in \mathbb{R}^{v},
-$$
-其中查询 $\mathbf{q}$ 和键 $\mathbf{k}_{i}$ 的注意力权重（标量）是通过注意力评分函数 $a$ 将两个向量映射成标量, 再经过softmax运算得到的:
-$$
-\alpha\left(\mathbf{q}, \mathbf{k}_{i}\right)=\operatorname{softmax}\left(a\left(\mathbf{q}, \mathbf{k}_{i}\right)\right)=\frac{\exp \left(a\left(\mathbf{q}, \mathbf{k}_{i}\right)\right)}{\sum_{j=1}^{m} \exp \left(a\left(\mathbf{q}, \mathbf{k}_{j}\right)\right)} \in \mathbb{R} .
-$$
-正如我们所看到的, 选择不同的注意力评分函数 $a$ 会导致不同的注意力汇聚操作。在本节中, 我们将介绍两个流行的评分 函数, 稍后将用他们来实现更复杂的注意力机制。
-### 掩蔽softmax操作
-正如上面提到的，softmax操作用于输出一个概率分布作为注意力权重。 在某些情况下，并非所有的值都应该被纳入到注意力汇聚中。 例如，为了在 9.5节中高效处理小批量数据集， 某些文本序列被填充了没有意义的特殊词元。 为了仅将有意义的词元作为值来获取注意力汇聚， 我们可以指定一个有效序列长度（即词元的个数）， 以便在计算softmax时过滤掉超出指定范围的位置。 通过这种方式，我们可以在下面的masked_softmax函数中 实现这样的掩蔽softmax操作（masked softmax operation）， 其中任何超出有效长度的位置都被掩蔽并置为0。
+如果包含词条t的文档越少, IDF越大，则说明词条具有很好的类别区分能力。
 
-### 加性注意力
-一般来说, 当查询和键是不同长度的矢量时, 我们可以使用加性注意力作为评分函数。 给定查询 $\mathbf{q} \in \mathbb{R}^{q}$ 和 键 $\mathbf{k} \in \mathbb{R}^{k}$, 加性注意力 (additive attention) 的评分函数为
-$$
-a(\mathbf{q}, \mathbf{k})=\mathbf{w}_{v}^{\top} \tanh \left(\mathbf{W}_{q} \mathbf{q}+\mathbf{W}_{k} \mathbf{k}\right) \in \mathbb{R},
-$$
-其中可学习的参数是 $\mathbf{W}_{q} \in \mathbb{R}^{h \times q} 、 \mathbf{W}_{k} \in \mathbb{R}^{h \times k}$ 和 $\mathbf{w}_{v} \in \mathbb{R}^{h}$ 。将查询和键连结起来后输入到一个多层 感知机 (MLP) 中, 感知机包含一个隐藏层, 其隐藏单元数是一个超参数 $h_{\circ}$ 通过使用 $\tanh$ 作为激活函数, 并且禁用偏置项。
+TF-IDF=TF*IDF
 
-```py
-class AdditiveAttention(nn.Module):
-    """加性注意力"""
-    def __init__(self, key_size, query_size, num_hiddens, dropout, **kwargs):
-        super(AdditiveAttention, self).__init__(**kwargs)
-        self.W_k = nn.Linear(key_size, num_hiddens, bias=False)
-        self.W_q = nn.Linear(query_size, num_hiddens, bias=False)
-        self.w_v = nn.Linear(num_hiddens, 1, bias=False)
-        self.dropout = nn.Dropout(dropout)
+某一特定文件内的高词语频率，以及该词语在整个文件集合中的低文件频率，可以产生出高权重的TF-IDF。因此，TF-IDF倾向于过滤掉常见的词语，保留重要的词语，表达为 
 
-    def forward(self, queries, keys, values, valid_lens):
-        queries, keys = self.W_q(queries), self.W_k(keys)
-        # 在维度扩展后，
-        # queries的形状：(batch_size，查询的个数，1，num_hidden)
-        # key的形状：(batch_size，1，“键－值”对的个数，num_hiddens)
-        # 使用广播方式进行求和
-        features = queries.unsqueeze(2) + keys.unsqueeze(1)
-        features = torch.tanh(features)
-        # self.w_v仅有一个输出，因此从形状中移除最后那个维度。
-        # scores的形状：(batch_size，查询的个数，“键-值”对的个数)
-        scores = self.w_v(features).squeeze(-1)
-        self.attention_weights = masked_softmax(scores, valid_lens)
-        # values的形状：(batch_size，“键－值”对的个数，值的维度)
-        return torch.bmm(self.dropout(self.attention_weights), values)
-```
 
-### 缩放点积注意力
-使用点积可以得到计算效率更高的评分函数，但是点积操作要求查询和键具有相同的长度 $d$ 。假设查询和键的所有元素都 是独立的随机变量, 并且都满足零均值和单位方差, 那么两个向量的点积的均值为 0 , 方差为 $d \circ$ 为确保无论向量长度如 何, 点积的方差在不考虑向量长度的情况下仍然是 1 , 我们将点积除以 $\sqrt{d}$, 则缩放点积注意力 (scaled dot-product attention）评分函数为：
-$$
-a(\mathbf{q}, \mathbf{k})=\mathbf{q}^{\top} \mathbf{k} / \sqrt{d} .
-$$
-在实践中, 我们通常从小批量的角度来考虑提高效率, 例如基于 $n$ 个查询和 $m$ 个键一值对计算注意力, 其中查询和键的 长度为 $d$, 值的长度为 $v_{\text {。 }}$ 查询 $\mathbf{Q} \in \mathbb{R}^{n \times d}$ 、键 $\mathbf{K} \in \mathbb{R}^{m \times d}$ 和 值 $\mathbf{V} \in \mathbb{R}^{m \times v}$ 的缩放点积注意力是:
-$$\operatorname{softmax}\left(\frac{\mathbf{Q K}}{\sqrt{d}}\right) \mathbf{V} \in \mathbb{R}^{n \times v}$$
+# 混淆矩阵
+## 基本概念
+准确率、精确率、查准率、查全率、真阳性率、假阳性率、ROC、AUC、PRC、KS、F1
 
-## 多头注意力
-在实践中，当给定相同的查询、键和值的集合时， 我们希望模型可以基于相同的注意力机制学习到不同的行为， 然后将不同的行为作为知识组合起来， 捕获序列内各种范围的依赖关系 （例如，短距离依赖和长距离依赖关系）。 因此，允许注意力机制组合使用查询、键和值的不同子空间表示（representation subspaces）可能是有益的。
+True Positive-TP： 预测值为1，预测结果正确，即TP
 
-为此，与其只使用单独一个注意力汇聚， 我们可以用独立学习得到的组不同的 线性投影（linear projections）来变换查询、键和值。 然后，这组变换后的查询、键和值将并行地送到注意力汇聚中。 最后，将这个注意力汇聚的输出拼接在一起， 并且通过另一个可以学习的线性投影进行变换， 以产生最终输出。 这种设计被称为多头注意力（multihead attention）。 对于个注意力汇聚输出，每一个注意力汇聚都被称作一个头（head）。展示了使用全连接层来实现可学习的线性变换的多头注意力。
+False Positive-FP： 预测值为1，预测结果错误，即FP
 
-![Alt](https://zh.d2l.ai/_images/multi-head-attention.svg)
+False Negative-TN： 预测值为0，预测结果错误，即FN
 
-在实现多头注意力之前, 让我们用数学语言将这个模型形式化地描述出来。 给定查询 $\mathbf{q} \in \mathbb{R}^{d_{q}}$ 、键 $\mathbf{k} \in \mathbb{R}^{d_{k}}$ 和 值 $\mathbf{v} \in \mathbb{R}^{d_{v}}$ ，每个注意力头 $\mathbf{h}_{i}(i=1, \ldots, h)$ 的计算方法为：
-$$
-\mathbf{h}_{i}=f\left(\mathbf{W}_{i}^{(q)} \mathbf{q}, \mathbf{W}_{i}^{(k)} \mathbf{k}, \mathbf{W}_{i}^{(v)} \mathbf{v}\right) \in \mathbb{R}^{p_{v}},
-$$
-其中, 可学习的参数包括 $\mathbf{W}_{i}^{(q)} \in \mathbb{R}^{p_{q} \times d_{q}} 、 \mathbf{W}_{i}^{(k)} \in \mathbb{R}^{p_{k} \times d_{k} \text { 和 }} \mathbf{W}_{i}^{(v)} \in \mathbb{R}^{p_{v} \times d_{v}}$, 以及代表注意力汇聚的函数 $f_{\circ} f$ 可 以是 $10.3$ 节中的 加性注意力和缩放点积注意力。多头注意力的输出需要经过另一个线性转换, 它对应着 $h$ 个头连结后的 结果, 因此其可学习参数是 $\mathbf{W}_{o} \in \mathbb{R}^{p_{o} \times h p_{v}}$ :
-$$
-\mathbf{W}_{o}\left[\begin{array}{c}
-\mathbf{h}_{1} \\
-\vdots \\
-\mathbf{h}_{h}
-\end{array}\right] \in \mathbb{R}^{p_{o}} .
-$$
-基于这种设计, 每个头都可能会关注输入的不同部分, 可以表示比简单加权平均值更复杂的函数。
+True Negative-FN：预测值为0，预测结果正确，即TN
 
-## 自注意力机制 self attention
-给定一个由词元组成的输入序列 $\mathbf{x}_{1}, \ldots, \mathbf{x}_{n}$, 其中任意 $\mathbf{x}_{i} \in \mathbb{R}^{d}(1 \leq i \leq n)$。该序列的自注意力输出为一个长度相同 的序列 $\mathbf{y}_{1}, \ldots, \mathbf{y}_{n}$, 其中:
+$A c c u r a c y=\frac{T P+T N}{A L L}$
+
+$Precision =\frac{T P}{T P+F P}$
+
+$Recall =\frac{T P}{T P+F N}$
+
+## ROC曲线 AUC面积
+
+![Alt](https://pic1.zhimg.com/80/v2-592f08ddbf22c4efbdbe714a1c99b9d1_1440w.jpg?source=1940ef5c)
+
+![Alt](https://pic1.zhimg.com/80/v2-43ed3d276eebb475af0c7645c2452aa7_1440w.jpg?source=1940ef5c)
+
+![Alt](https://pic1.zhimg.com/80/v2-83f1a3fa2db8c707df046bd819ce7e8c_1440w.jpg?source=1940ef5c)
+
+TPR越高，同时FPR越低（即ROC曲线越陡），那么模型的性能就越好
+
+AUC (Area Under Curve) 被定义为ROC曲线下的面积，完全随机的二分类器的AUC为0.5，因此与之相对的相对面积更大，更靠近左上角的曲线代表着一个更加稳健的二分类器。
+
+### 计算
+
+根据AUC的统计意义，我们可以通过计算逆序对数来计算AUC。假设真实label和预测label是以(true_label, predicted_label)的形式保存，那么我们可以排序true label来统计predicted label的逆序对数（下面法1），也可以排序predicted label来统计true label的逆序对数（下面法2）：
+
+#### 法1
+对真实label排序，统计预测label的逆序对数
+
+在有M个正样本,N个负样本的数据集里。一共有M*N对样本（一对样本即，一个正样本与一个负样本，注意这里的定义！他不是任意抽两个样本！）。统计这M*N对样本里，正样本的预测概率大于负样本的预测概率的个数。
+
 $$
-\mathbf{y}_{i}=f\left(\mathbf{x}_{i},\left(\mathbf{x}_{1}, \mathbf{x}_{1}\right), \ldots,\left(\mathbf{x}_{n}, \mathbf{x}_{n}\right)\right) \in \mathbb{R}^{d}
+\frac{\sum I\left(P_{\text {positive }}, P_{\text {negtive }}\right)}{M \times N}
 $$
 
-
-![Alt](https://img-blog.csdnimg.cn/20190802192736772.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80Mzc1ODU1MQ==,size_16,color_FFFFFF,t_70)
-
-![Alt](https://img-blog.csdnimg.cn/20190802202927777.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80Mzc1ODU1MQ==,size_16,color_FFFFFF,t_70)
-
-### 位置编码
-在处理词元序列时, 循环神经网络是逐个的重复地处理词元的, 而自注意力则因为并行计算而放弃了顺序操作。为了使 用序列的顺序信息，我们通过在输入表示中添加 位置编码（positional encoding）来注入绝对的或相对的位置信息。位 置编码可以通过学习得到也可以直接固定得到。 接下来，我们描述的是基于正弦函数和余弦函数的固定位置编码 [Vaswani et al.,2017]。
-假设输入表示 $\mathbf{X} \in \mathbb{R}^{n \times d}$ 包含一个序列中 $n$ 个词元的 $d$ 维嵌入表示。 位置编码使用相同形状的位置嵌入矩阵 $\mathbf{P} \in \mathbb{R}^{n \times d}$ 输 出 $\mathbf{X}+\mathbf{P}$, 矩阵第 $i$ 行、第 $2 j$ 列和 $2 j+1$ 列上的元素为：
+其中
 $$
-\begin{aligned}
-p_{i, 2 j} &=\sin \left(\frac{i}{10000^{2 j / d}}\right) \\
-p_{i, 2 j+1} &=\cos \left(\frac{i}{10000^{2 j / d}}\right)
-\end{aligned}
-$$
-除了捕获绝对位置信息之外, 上述的位置编码还允许模型学习得到输入序列中相对位置信息。 这是因为对于任何确定的 位置偏移 $\delta$, 位置 $i+\delta$ 处 的位置编码可以线性投影位置 $i$ 处的位置编码来表示。
-这种投影的数学解释是, 令 $\omega_{j}=1 / 10000^{2 j / d}$, 对于任何确定的位置偏移 $\delta$, (10.6.2).中的任何一对 $\left(p_{i, 2 j}, p_{i, 2 j+1}\right)$ 都可以 线性投影到 $\left(p_{i+\delta, 2 j}, p_{i+\delta, 2 j+1}\right)$ :
-$$
-\begin{aligned}
-& {\left[\begin{array}{cc}
-\cos \left(\delta \omega_{j}\right) & \sin \left(\delta \omega_{j}\right) \\
--\sin \left(\delta \omega_{j}\right) & \cos \left(\delta \omega_{j}\right)
-\end{array}\right]\left[\begin{array}{c}
-p_{i, 2 j} \\
-p_{i, 2 j+1}
-\end{array}\right] } \\
-=& {\left[\begin{array}{c}
-\cos \left(\delta \omega_{j}\right) \sin \left(i \omega_{j}\right)+\sin \left(\delta \omega_{j}\right) \cos \left(i \omega_{j}\right) \\
--\sin \left(\delta \omega_{j}\right) \sin \left(i \omega_{j}\right)+\cos \left(\delta \omega_{j}\right) \cos \left(i \omega_{j}\right)
-\end{array}\right] } \\
-=& {\left[\begin{array}{c}
-\sin \left((i+\delta) \omega_{j}\right) \\
-\cos \left((i+\delta) \omega_{j}\right)
-\end{array}\right] } \\
-=& {\left[\begin{array}{c}
-p_{i+\delta, 2 j} \\
-p_{i+\delta, 2 j+1}
-\end{array}\right] }
-\end{aligned}
-$$
-$2 \times 2$ 投影矩阵不依赖于任何位置的索引 $i_{\circ}$
-
-### 小结
-在自注意力中，查询、键和值都来自同一组输入。
-
-卷积神经网络和自注意力都拥有并行计算的优势，而且自注意力的最大路径长度最短。但是因为其计算复杂度是关于序列长度的二次方，所以在很长的序列中计算会非常慢。
-
-为了使用序列的顺序信息，我们可以通过在输入表示中添加位置编码，来注入绝对的或相对的位置信息。
-
-
-## transformer
-
-### 基本结构
-![Alt](https://zh.d2l.ai/_images/transformer.svg)
-
-从宏观角度来看, transformer的编码器是由多个相同的层叠加而成的, 每个层 都有两个子层（子层表示为sublayer）。第一个子层是多头自注意力（multi-head self-attention）汇聚；第二个子层是基 于位置的前馈网络（positionwise feed-forward network）。具体来说, 在计算编码器的自注意力时, 查询、键和值都来 自前一个编码器层的输出。受 $7.6$ 节中残差网络的启发, 每个子层都采用了残差连接（residual connection）。在 transformer中, 对于序列中任何位置的任何输入 $\mathbf{x} \in \mathbb{R}^{d}$, 都要求满足sublayer $(\mathbf{x}) \in \mathbb{R}^{d}$, 以便残差连接满足 $\mathbf{x}+\operatorname{sublayer}(\mathbf{x}) \in \mathbb{R}^{d}$ 。在残差连接的加法计算之后，紧接着应用层规范化（layer normalization）。因此，输入序列对应的每个位置, transformer编码器都将输出一个 $d$ 维表示向量。
-
-Transformer解码器也是由多个相同的层叠加而成的, 并且层中使用了残差连接和层规范化。除了编码器中描述的两个子 层之外, 解码器还在这两个子层之间揷入了第三个子层, 称为编码器一解码器注意力 (encoder-decoder attention) 层。 在编码器一解码器注意力中, 查询来自前一个解码器层的输出, 而键和值来自整个编码器的输出。在解码器自注意力中, 查询、键和值都来自上一个解码器层的输出。但是，解码器中的每个位置只能考虑该位置之前的所有位置。这种掩蔽 (masked) 注意力保留了自回归（auto-regressive）属性，确保预测仅依赖于已生成的输出词元。
-
-### 基于位置的前馈网络
-基于位置的前馈网络对序列中的所有位置的表示进行变换时使用的是同一个多层感知机（MLP），这就是称前馈网络是基于位置的（positionwise）的原因。
-
-它接受一个形状为（batch_size，seq_length, feature_size）的三维张量。Position-wise FFN由两个全连接层组成，他们作用在最后一维上。因为序列的每个位置的状态都会被单独地更新，所以我们称他为position-wise，这等效于一个1x1的卷积。
-
-# word2vec
-word2vec工具是为了解决上述问题而提出的。它将每个词映射到一个固定长度的向量，这些向量能更好地表达不同词之间的相似性和类比关系。word2vec工具包含两个模型，即跳元模型（skip-gram） [Mikolov et al., 2013b]和连续词袋（CBOW） [Mikolov et al., 2013a]。对于在语义上有意义的表示，它们的训练依赖于条件概率，条件概率可以被看作是使用语料库中一些词来预测另一些单词。由于是不带标签的数据，因此跳元模型和连续词袋都是自监督模型。
-
-## 跳元模型（Skip-Gram）
-跳元模型假设一个词可以用来在文本序列中生成其周围的单词。
-
-在跳元模型中, 每个词都有两个 $d$ 维向量表示, 用于计算条件概率。更具体地说, 对于词典中索引为 $i$ 的任何词, 分别用 $\mathbf{v}_{i} \in \mathbb{R}^{d}$ 和 $\mathbf{u}_{i} \in \mathbb{R}^{d}$ 表示其用作中心词和上下文词时的两个向量。给定中心词 $w_{c}$ （词典中的索引 $c$ ），生成任何上下文词 $w_{o}$ （词典中的索引o）的条件概率可以通过对向量点积的softmax操作来建模:
-$$
-P\left(w_{o} \mid w_{c}\right)=\frac{\exp \left(\mathbf{u}_{o}^{\top} \mathbf{v}_{c}\right)}{\sum_{i \in \mathcal{V}} \exp \left(\mathbf{u}_{i}^{\top} \mathbf{v}_{c}\right)}
-$$
-其中词表索引集 $\mathcal{V}=\{0,1, \ldots,|\mathcal{V}|-1\}_{\circ}$ 给定长度为 $T$ 的文本序列，其中时间步 $t$ 处的词表示为 $w^{(t)}$ 。假设上下文词是 在给定任何中心词的情况下独立生成的。对于上下文窗口 $m$ ，跳元模型的似然函数是在给定任何中心词的情况下生成所有 上下文词的概率：
-$$
-\prod_{t=1}^{T} \prod_{-m \leq j \leq m, j \neq 0} P\left(w^{(t+j)} \mid w^{(t)}\right)
-$$
-其中可以省略小于1或大于 $T$ 的任何时间步。
-
-## 连续词袋（CBOW）
-连续词袋（CBOW）模型类似于跳元模型。与跳元模型的主要区别在于，连续词袋模型假设中心词是基于其在文本序列中的周围上下文词生成的。
-
-由于连续词袋模型中存在多个上下文词, 因此在计算条件概率时对这些上下文词向量进行平均。具体地说, 对于字典中索 引 $i$ 的任意词，分别用 $\mathbf{v}_{i} \in \mathbb{R}^{d}$ 和 $\mathbf{u}_{i} \in \mathbb{R}^{d}$ 表示用作上下文词和中心词的两个向量（符号与跳元模型中相反）。给定上下 文词 $w_{o_{1}}, \ldots, w_{o_{2 m}}$ （在词表中索引是 $o_{1}, \ldots, o_{2 m}$ ）生成任意中心词 $w_{c}$ （在词表中索引是 $c$ ）的条件概率可以由以下公式 建模:
-$$
-P\left(w_{c} \mid w_{o_{1}}, \ldots, w_{o_{2 m}}\right)=\frac{\exp \left(\frac{1}{2 m} \mathbf{u}_{c}^{\top}\left(\mathbf{v}_{o_{1}}+\ldots,+\mathbf{v}_{o_{2 m}}\right)\right)}{\sum_{i \in \mathcal{V}} \exp \left(\frac{1}{2 m} \mathbf{u}_{i}^{\top}\left(\mathbf{v}_{o_{1}}+\ldots,+\mathbf{v}_{o_{2 m}}\right)\right)}
-$$
-为了简洁起见，我们设为 $\mathcal{W}_{o}=\left\{w_{o_{1}}, \ldots, w_{o_{2 m}}\right\}$ 和 $\mathbf{v}_{o}=\left(\mathbf{v}_{o_{1}}+\ldots,+\mathbf{v}_{o_{2 m}}\right) /(2 m)$ 。那么可以简化为:
-$$
-P\left(w_{c} \mid \mathcal{W}_{o}\right)=\frac{\exp \left(\mathbf{u}_{c}^{\top} \overline{\mathbf{v}}_{o}\right)}{\sum_{i \in \mathcal{V}} \exp \left(\mathbf{u}_{i}^{\top} \overline{\mathbf{v}}_{o}\right)} .
-$$
-给定长度为 $T$ 的文本序列, 其中时间步 $t$ 处的词表示为 $w^{(t)}$ 。对于上下文窗口 $m$, 连续词袋模型的似然函数是在给定其上 下文词的情况下生成所有中心词的概率:
-$$
-\prod_{t=1}^{T} P\left(w^{(t)} \mid w^{(t-m)}, \ldots, w^{(t-1)}, w^{(t+1)}, \ldots, w^{(t+m)}\right) .
+I\left(P_{\text {positive }}, P_{\text {negtive }}\right)=\left\{\begin{array}{l}1, P_{\text {positive }}>P_{\text {positive }} \\ 0.5, P_{\text {positice }}=P_{\text {negtive }} \\ 0, P_{\text {positive }}<P_{\text {negtive }}\end{array}\right.
 $$
 
-## 下采样
-文本数据通常有“the”、“a”和“in”等高频词：它们在非常大的语料库中甚至可能出现数十亿次。然而，这些词经常在上下文窗口中与许多不同的词共同出现，提供的有用信息很少。此外，大量（高频）单词的训练速度很慢。因此，当训练词嵌入模型时，可以对高频单词进行下采样。具体地说，数据集中的每个词将有概率地被丢弃。
+1. 统计所有正样本个数P，负样本个数N；
+2. 遍历所有正负样本对，统计正样本预测值大于负样本预测值的样本总个数number
+3. AUC = number / (P * N)
+4. 一些计算细节是当正负样本预测值刚好相等时，该样本记为0.5个。
 
-## 负采样
-根据word2vec论文中的建议，将噪声词的采样概率设置为其在字典中的相对频率，其幂为0.75。
+#### 法2
+首先对score从小到大排序，然后令最小score对应的sample的rank为1，第二小score对应sample的rank为2，以此类推。然后把所有的正类样本的rank相加，再减去两个正样本组合的情况（因为AUC要求是抽取一个正样本和一个负样本，正样本pred排在负样本前的概率，所以两个都是正样本这种情况要排除）。得到的就是所有的样本中有多少对正类样本的score大于负类样本的score。然后再除以M×N。
 
+$A U C=\frac{\sum_{\mathrm{i} \in \text { positiveClass }} \operatorname{ran}_{i}-\frac{M(1+M)}{2}}{M \times N}$
+
+首先解释一下rank的含义，我们是pred从小到大排序，当前数的rank就代表当前数与其排在前面的数能够形成多少对。那么显然如果这里是正样本，它形成的就是正序对或者“正样本-正样本”对（因为我们最小的秩是1，但形成的对数是0，因此秩也包括其“自身-自身”对）（“正样本-正样本”和“自身-自身”后面会被减掉）。如果是负样本，形成的就是逆序对或者“负样本-负样本”对，这显然对计算auc没用，舍去，所以求和符号只会对正样本的rank求和。
+
+那么如何减去“正样本-正样本”和“自身-自身”对的个数呢。我们记正样本的个数为M，那么第1小的正样本会形成这样的对数1对（“自身-自身”），第2小的正样本形成2对......，总共形成1+2+3+...+M对，即M(M+1)/2，这是等差数列求和公式。这也是为什么后面要减去这一项。
+
+gini=2AUC-1
+
+## F1/PR曲线
+PR曲线中的P代表的是precision（精准率），R代表的是recall（召回率），其代表的是精准率与召回率的关系，一般情况下，将recall设置为横坐标，precision设置为纵坐标。
+
+![Alt](https://img-blog.csdnimg.cn/20200813084123107.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2d1emhhbzk5MDE=,size_16,color_FFFFFF,t_70#pic_center)
+
+F1分数同时考虑了查准率和查全率，让二者同时达到最高，取一个平衡。
+
+$F_{1}=\frac{2}{\frac{1}{\text { precision }}+\frac{1}{\text { recall }}}=2 \frac{\text { precision } \times \text { recall }}{\text { precision }+\text { recall }}$
+
+## 总结
+![Alt](https://pic2.zhimg.com/80/v2-30d2be27555b2062e85e755bd25c46a6_1440w.jpg?source=1940ef5c)

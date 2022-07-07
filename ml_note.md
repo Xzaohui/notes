@@ -1,9 +1,11 @@
 # 决策树
 ## ID3算法 熵
 
-信息熵    $H(D)=-\sum_{k=1}^{K} \frac{\left|C_{k}\right|}{|D|} \log _{2} \frac{\left|C_{k}\right|}{|D|}$
+信息熵    
+$$H(D)=-\sum_{k=1}^{K} \frac{\left|C_{k}\right|}{|D|} \log _{2} \frac{\left|C_{k}\right|}{|D|}$$
 
-每个决策的条件熵 $\begin{aligned} H(D \mid A) &=\sum_{i=1}^{n} \frac{\left|D_{i}\right|}{|D|} H\left(D_{i}\right)  =-\sum_{i=1}^{n} \frac{\left|D_{i}\right|}{|D|}\left(\sum_{k=1}^{K} \frac{\left|D_{i k}\right|}{\left|D_{i}\right|} \log _{2} \frac{\left|D_{i k}\right|}{\left|D_{i}\right|}\right) \end{aligned}$
+每个决策的条件熵 
+$$\begin{aligned} H(D \mid A) &=\sum_{i=1}^{n} \frac{\left|D_{i}\right|}{|D|} H\left(D_{i}\right)  =-\sum_{i=1}^{n} \frac{\left|D_{i}\right|}{|D|}\left(\sum_{k=1}^{K} \frac{\left|D_{i k}\right|}{\left|D_{i}\right|} \log _{2} \frac{\left|D_{i k}\right|}{\left|D_{i}\right|}\right) \end{aligned}$$
 
 其中$D_i$表示 D 中特征 A 取第 i 个值的样本子集，$D_{i,k} $表示 $D_i$ 中属于第 k 类的样本子集
 
@@ -106,41 +108,6 @@ kd树的每轮切分点的选择策略比较简单，是将带切分平面上的
 
 2 回溯-以目标数据和最近邻的近似点的距离沿子节点到父节点方向进行回溯和迭代。
 
-# K均值聚类 K-Means
-
-算法接受参数 k ；然后将事先输入的n个数据对象划分为k个聚类以便使得所获得的聚类满足：同一聚类中的对象相似度较高；而不同聚类中的对象相似度较小。聚类相似度是利用各聚类中对象的均值所获得一个“中心对象”（引力中心）来进行计算的。
-
-（1）适当选择c个类的初始中心；
-
-（2）在第k次迭代中，对任意一个样本，求其到c个中心的距离，将该样本归到距离最短的中心所在的类；
-
-（3）利用均值等方法更新该类的中心值；
-
-（4）对于所有的c个 聚类中心，如果利用（2）（3）的 迭代法更新后，值保持不变，则迭代结束，否则继续迭代。
-
-## 代码
-    
-```python
-for t in range(self.times):
-    for index, x in enumerate(X):
-        dis = np.sqrt(np.sum(x-self.cluster_centers)**2, axis=1)
-        # 将最小距离的所有赋值给标签数组，索引的值就说当前点所属的簇
-        self.labels_[index] = dis.argmin()
-    # 循环遍历每个簇
-    for i in range(self.k):
-        # 计算每个簇内的所有的点均值，更新聚类中心
-        self.cluster_centers[i] = np.mean(X[self.labels_ == i], axis=0)
-```
-## 区别
-KMeans与KNN的区别：
-
-(1)KMeans是无监督学习算法，KNN是监督学习算法。
-
-(2)KMeans算法的训练过程需要反复迭代的操作（寻找新的质心），但是KNN不需要。
-
-(3)KMeans中的K代表的是簇中心，KNN的K代表的是选择与新测试样本距离最近的前K个训练样本数。
-    
-(4)KMeans算法的训练过程中，每次迭代都需要遍历所有的训练样本，而KNN算法的训练过程中，只需要遍历前K个训练样本即可。
 
 # 朴素贝叶斯
 
@@ -300,6 +267,43 @@ $$
 ![Alt](./picture/2.png)
 ![Alt](./picture/3.png)
 ![Alt](./picture/4.png)
+
+
+# K均值聚类 K-Means
+
+算法接受参数 k ；然后将事先输入的n个数据对象划分为k个聚类以便使得所获得的聚类满足：同一聚类中的对象相似度较高；而不同聚类中的对象相似度较小。聚类相似度是利用各聚类中对象的均值所获得一个“中心对象”（引力中心）来进行计算的。
+
+（1）适当选择c个类的初始中心；
+
+（2）在第k次迭代中，对任意一个样本，求其到c个中心的距离，将该样本归到距离最短的中心所在的类；
+
+（3）利用均值等方法更新该类的中心值；
+
+（4）对于所有的c个 聚类中心，如果利用（2）（3）的 迭代法更新后，值保持不变，则迭代结束，否则继续迭代。
+
+## 代码
+    
+```python
+for t in range(self.times):
+    for index, x in enumerate(X):
+        dis = np.sqrt(np.sum(x-self.cluster_centers)**2, axis=1)
+        # 将最小距离的所有赋值给标签数组，索引的值就说当前点所属的簇
+        self.labels_[index] = dis.argmin()
+    # 循环遍历每个簇
+    for i in range(self.k):
+        # 计算每个簇内的所有的点均值，更新聚类中心
+        self.cluster_centers[i] = np.mean(X[self.labels_ == i], axis=0)
+```
+## 区别
+KMeans与KNN的区别：
+
+(1)KMeans是无监督学习算法，KNN是监督学习算法。
+
+(2)KMeans算法的训练过程需要反复迭代的操作（寻找新的质心），但是KNN不需要。
+
+(3)KMeans中的K代表的是簇中心，KNN的K代表的是选择与新测试样本距离最近的前K个训练样本数。
+    
+(4)KMeans算法的训练过程中，每次迭代都需要遍历所有的训练样本，而KNN算法的训练过程中，只需要遍历前K个训练样本即可。
 
 
 
