@@ -66,6 +66,16 @@ def letterCombinations(self, digits: str) -> List[str]:
 https://leetcode.cn/problems/generate-parentheses/
 
 https://leetcode.cn/problems/letter-combinations-of-a-phone-number/
+## match、search、findall、finditer
+都可以用r''正则表达式来匹配
+
+match方法从头开始找，找到就返回，否则为None，只匹配一次（必须开头就有这个字符串）
+
+search从头依次搜索，只匹配一次
+
+findall方法：返回列表，匹配所有
+
+返回string中所有相匹配的全部字串，返回形式为迭代器。
 
 # 分治
 ```py
@@ -326,11 +336,48 @@ def right_rotation(root):
 
 前身是4阶B树
 
-```py
-def RedBlackTree():
-    
-```
+## Trie 树
+也叫“字典树”。顾名思义，它是一个树形结构。它是一种专门处理字符串匹配的数据结构，用来解决在一组字符串集合中快速查找某个字符串的问题。
 
+Trie 树的本质，就是利用字符串之间的公共前缀，将重复的前缀合并在一起
+
+### 构造Trie树
+![](https://img-blog.csdnimg.cn/20210129092521661.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NzI1MTk5OQ==,size_16,color_FFFFFF,t_70)
+
+实际上构造Trie树，是利用数组（每个节点是字符值+下一字符的索引）
+
+![](https://img-blog.csdnimg.cn/20210129093250226.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NzI1MTk5OQ==,size_16,color_FFFFFF,t_70)
+
+### 时间复杂度
+构建Trie树时间复杂度是 O(n)（n是Trie树中所有元素的个数）
+
+查询Trie树时间复杂度是 O(k)（k 表示要查找的字符串的长度）
+
+### 缺点
+每个数组元素要存储一个 8 字节指针（或者是 4 字节，这个大小跟 CPU、操作系统、编译器等有关），且指针对CPU缓存并不友好。
+
+在重复的前缀并不多的情况下，Trie 树不但不能节省内存，还有可能会浪费更多的内存。（比如，此种字符串第三个字符只有两种可能，而它要维护一个长26的数组。这还只是考虑纯字母的情况，如果是复合型字符串，则会浪费更多空间）
+
+### 解决办法：
+方法一： 将每个节点中的数组换成其他数据结构，比如有序数组、跳表、散列表、红黑树等。
+
+    假设我们用有序数组，数组中的指针按照所指向的子节点中的字符的大小顺序排列。
+    通过二分查找的方法，快速查找到某个字符应该匹配的子节点的指针。（这就不用维
+    护一个上述26的数组，只需要维护两个可能的字符数组）当然，这样为了维护数组顺
+    序，插入元素效率较慢。
+
+方法二：缩点优化
+
+### 匹配算法
+单模式串匹配算法，是在一个模式串和一个主串之间进行匹配，也就是说，在一个主串中查找一个模式串。
+
+多模式串匹配算法，就是在多个模式串和一个主串之间做匹配，也就是说，在一个主串中查找多个模式串。（AC自动机）
+
+### 应用
+
+Trie 树只是不适合精确匹配查找，这种问题更适合用散列表或者红黑树来解决。 Trie 树比较适合的是查找前缀匹配的字符串
+
+Trie 树的这个应用可以扩展到更加广泛的一个应用上，就是自动输入补全，比如输入法自动补全功能、IDE 代码编辑器自动补全功能、浏览器网址输入的自动补全功能等等。
 # 贪心
 
 ## 分发糖果
