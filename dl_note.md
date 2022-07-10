@@ -1,8 +1,15 @@
 
 # 注意力机制
 
+## Attention和全连接的区别
+Attention的最终输出可以看成是一个“在关注部分权重更大的全连接层”。但是它与全连接层的区别在于，**注意力机制可以利用输入的特征信息来确定哪些部分更重要**。
+
+**全连接的作用的是对一个实体进行从一个特征空间到另一个特征空间的映射，而注意力机制是要对来自同一个特征空间的多个实体进行整合**。全连接的权重对应的是一个实体上的每个特征的重要性，而注意力机制的输出结果是各个实体的重要性。
+
 ## 注意力评分函数
 注意力评分函数（attention scoring function）， 简称评分函数（scoring function）， 然后把这个函数的输出结果输入到softmax函数中进行运算。 通过上述步骤，我们将得到与键对应的值的概率分布（即注意力权重）。 最后，注意力汇聚的输出就是基于这些注意力权重的值的加权和。
+
+seq2seq + attention 的 attention 的 key 与 value  是相同的，都是解码器的输出，但是在其他框架中就不一定了
 
 ![Alt](https://zh.d2l.ai/_images/attention-output.svg)
 
@@ -59,8 +66,25 @@ $$
 在实践中, 我们通常从小批量的角度来考虑提高效率, 例如基于 $n$ 个查询和 $m$ 个键一值对计算注意力, 其中查询和键的 长度为 $d$, 值的长度为 $v_{\text {。 }}$ 查询 $\mathbf{Q} \in \mathbb{R}^{n \times d}$ 、键 $\mathbf{K} \in \mathbb{R}^{m \times d}$ 和 值 $\mathbf{V} \in \mathbb{R}^{m \times v}$ 的缩放点积注意力是:
 $$\operatorname{softmax}\left(\frac{\mathbf{Q K}}{\sqrt{d}}\right) \mathbf{V} \in \mathbb{R}^{n \times v}$$
 
-
-seq2seq + attention 的 attention 的 key 与 value  是相同的，都是解码器的输出，但是在其他框架中就不一定了
+```py
+class DotProductAttention(nn.Module):
+    """缩放点积注意力"""
+    def __init__(self, dropout, **kwargs):
+        super(DotProductAttention, self).__init__(**kwargs)
+        self.dropout = nn.Dropout(dropout)
+    # queries的形状：(batch_size，查询的个数，d)
+    # keys的形状：(batch_size，“键－值”对的个数，d)
+    # values的形状：(batch_size，“键－值”对的个数，值的维度)
+    # valid_lens的形状:(batch_size，)或者(batch_size，查询的个数)
+    def forward(self, queries, keys, values, valid_lens=None):
+        d = queries.shape[-1]
+        # 设置transpose_b=True为了交换keys的最后两个维度
+        scores = torch.bmm(queries, keys.transpose(1,2)) / math.sqrt(d)
+        self.attention_weights = torch.softmax(scores, valid_lens)
+        return torch.bmm(self.dropout(self.attention_weights), values)
+```
+### 相较于加性模型，点积模型具备哪些优点
+常用的Attention机制为加性模型和点积模型，理论上加性模型和点积模型的复杂度差不多，但是点积模型在实现上可以更好地利用矩阵乘积，从而计算效率更高（实际上，随着维度d的增大，加性模型会明显好于点积模型）。
 ## Bahdanau Attention Mechanism
 传统seq2seq模型中encoder将输入序列编码成一个context向量，decoder将context向量作为初始隐状态，生成目标序列。随着输入序列长度的增加，编码器难以将所有输入信息编码为单一context向量，编码信息缺失，难以完成高质量的解码。
 
@@ -120,22 +144,7 @@ $$
 基于这种设计, 每个头都可能会关注输入的不同部分, 可以表示比简单加权平均值更复杂的函数。
 
 在同一 multi-head attention 层中，输入均为 KQV ，同时进行注意力的计算，彼此之前参数不共享，最终将结果拼接起来，这样可以允许模型在不同的表示子空间里学习到相关的信息。
-```py
-class DotProductAttention(nn.Module):
-    """缩放点积注意力"""
-    def __init__(self, dropout, **kwargs):
-        super(DotProductAttention, self).__init__(**kwargs)
-        self.dropout = nn.Dropout(dropout)
-    # queries的形状：(batch_size，查询的个数，d)
-    # keys的形状：(batch_size，“键－值”对的个数，d)
-    # values的形状：(batch_size，“键－值”对的个数，值的维度)
-    # valid_lens的形状:(batch_size，)或者(batch_size，查询的个数)
-    def forward(self, queries, keys, values, valid_lens=None):
-        d = queries.shape[-1]
-        # 设置transpose_b=True为了交换keys的最后两个维度
-        scores = torch.bmm(queries, keys.transpose(1,2)) / math.sqrt(d)
-        self.attention_weights = torch.softmax(scores, valid_lens)
-        return torch.bmm(self.dropout(self.attention_weights), values)
+```python
 class MultiHeadAttention(nn.Module):
     """多头注意力"""
     def __init__(self, key_size, query_size, value_size, num_hiddens,
@@ -264,7 +273,7 @@ $2 \times 2$ 投影矩阵不依赖于任何位置的索引 $i_{\circ}$
 为了使用序列的顺序信息，我们可以通过在输入表示中添加位置编码，来注入绝对的或相对的位置信息。
 
 
-## transformer
+## Transformer
 
 ### 基本结构
 ![Alt](https://zh.d2l.ai/_images/transformer.svg)
@@ -280,6 +289,31 @@ Transformer解码器也是由多个相同的层叠加而成的, 并且层中使�
 基于位置的前馈网络对序列中的所有位置的表示进行变换时使用的是同一个多层感知机（MLP），这就是称前馈网络是基于位置的（positionwise）的原因。
 
 它接受一个形状为（batch_size，seq_length, feature_size）的三维张量。Position-wise FFN由两个全连接层组成，他们作用在最后一维上。因为序列的每个位置的状态都会被单独地更新，所以我们称他为position-wise，这等效于一个1x1的卷积。
+
+## Transformer-XL
+Transformer最大的问题在于没有办法建模超过最大长度的序列，例如base bert其支持的序列最大长度是512，超过了该长度的序列需要进行截取，再把截取后的片段分别用bert进行编码，该方法虽然可行，但是存在上下文碎片化的问题，也就是说每个片段是单独建模的，互相之间没有上下文信息，并且，不同的片段位置编码都是从0开始，明显是有问题的。
+
+Transformer-XL主要提出了两个优化点
+
+1. Segment-Level Recurrence Mechanism 段级递归
+2. Relative Positional Encodings 相对位置编码
+
+### Segment-Level Recurrence Mechanism
+在训练阶段如果要对多个片段编码，两个片段没有相互依赖，上下文信息会丢失，不同的片段位置编码一样，因此也不准确。
+
+为了解决固定长度的限制，Transformer-XL提出了一种递归机制，在第一个segment计算完成后，把计算的结果保存下来，在计算第二个片段的时候，把第一个片段的hidden state和第二个片段的hidden state拼接在一起，再进行后续的计算。
+### Relative Positional Encodings
+$$
+\begin{aligned}
+p_{i, j}[2k] &=\sin \left(\frac{j-i}{10000^{2k / d}}\right) \\
+p_{i, j}[2k+1] &=\cos \left(\frac{j-i}{10000^{2k / d}}\right)
+\end{aligned}
+$$
+
+2k是向量的第几个数，i,j是索引位置。
+
+是在attention阶段加入。
+
 
 
 # 词向量机制
@@ -332,6 +366,12 @@ $$
 词汇表的大小决定了word2vec进行词向量训练时神经网络将会有一个非常大的权重参数，并且所有的权重参数会随着数十亿训练样本不断调整。negative sampling 每次让一个训练样本仅仅更新一小部分的权重参数，从而降低梯度下降过程中的计算量。
 
 现在每个训练步的梯度计算成本与词表大小无关，而是线性依赖于K噪声词数。当将超参数设置为较小的值时，在负采样的每个训练步处的梯度的计算成本较小。
+
+#### Word2vec负采样实现
+如果词汇表的大小为V,那么我们就将一段长度为1的线段分成V份，每份对应词汇表中的一个词。当然每个词对应的线段长度是不一样的，高频词对应的线段长，低频词对应的线段短。
+
+在采样前，我们将这段长度为1的线段划分成M等份，这里M>>V，这样可以保证每个词对应的线段都会划分成对应的小块。而M份中的每一份都会落在某一个词对应的线段上。在采样的时候，我们只需要从M个位置中采样出neg个位置就行，此时采样到的每一个位置对应到的线段所属的词就是我们的负例词。
+
 
 ### 层序Softmax
 作为另一种近似训练方法，层序Softmax（hierarchical softmax）使用二叉树，其中树的每个叶节点表示词表中的一个词。
@@ -815,6 +855,11 @@ ResNet和DenseNet的关键区别在于，DenseNet输出是连接而不是如ResN
 DenseNet的主要构建模块是稠密块和过渡层。
 
 在构建DenseNet时，我们需要通过添加过渡层来控制网络的维数，从而再次减少通道的数量。
+## 参数量/计算量
+
+卷积层：$\text{conv}=in\times out\times Kernal\times Kernal+out$
+
+
 ## 1*1卷积核的作用
 1. 跨通道的特征整合
 
@@ -825,6 +870,38 @@ DenseNet的主要构建模块是稠密块和过渡层。
 3. 减少卷积核参数（简化模型）
 
 因为使用了最小窗口，卷积失去了卷积层的特有能力——在高度和宽度维度上，识别相邻元素间相互作用的能力。 其实卷积的唯一计算发生在通道上。我们可以将卷积层看作是在每个像素位置应用的全连接层，以个$C_i$输入值转换为$C_o$个输出值。同时，卷积层需要的权重维度为$C_i \times C_o$，再额外加上一个偏置。
+
+## pooling池化的作用
+pooling的结果是使得特征减少，参数减少
+
+pooling目的是为了保持某种不变性（旋转、平移、伸缩等）
+
+特征提取的误差主要来自两个方面：
+
+（1）邻域大小受限造成的估计值方差增大；
+
+（2）卷积层参数误差造成估计均值的偏移。
+
+mean-pooling能减小第一种误差（邻域大小受限造成的估计值方差增大），更多的保留图像的背景信息，
+
+max-pooling能减小第二种误差（卷积层参数误差造成估计均值的偏移），更多的保留纹理信息。
+
+Stochastic-pooling随机池化则介于两者之间，通过对像素点按照数值大小赋予概率，再按照概率进行亚采样。
+
+这种随机池化操作不但最大化地保证了取值的Max，也部分确保不会所有的元素都被选取max值，从而提高了泛化能力。
+
+在平均意义上，与mean-pooling近似，在局部意义上，则服从max-pooling的准则。
+
+全局最大池化：在每个通道的特征图上找到最大值作为输出
+
+全局平均池化：在每个通道的特征图上计算特征图的平均值作为输出
+
+二者可以代替全联接层
+
+1. 使用pooling技术将卷积层后得到的小邻域内的特征点整合得到新的特征。一方面防止无用参数增加时间复杂度，一方面增加了特征的整合度。
+2. pooling是用更高层的抽象表示图像特征，图像具有一种“静态性”的属性，这也就意味着在一个图像区域有用的特征极有可能在另一个区域同样适用。
+3. 做窗口滑动卷积的时候，卷积值就代表了整个窗口的特征。因为滑动的窗口间有大量重叠区域，出来的卷积值有冗余，进行最大pooling或者平均pooling就是减少冗余。减少冗余的同时，pooling也丢掉了局部位置信息，所以局部有微小形变，结果也是一样的。
+4. 平移不变性，保留主要的特征同时减少参数(降维，效果类似PCA)和计算量，防止过拟合，提高模型泛化能力
 
 
 # Learn to Rank（LTR）
@@ -928,6 +1005,53 @@ Leaning to Rank 则可以根据用户的反馈对多路召回的 item 进行排�
 2. 用户点击有比较大的噪声
 3. 一般头查询（head query）才存在用户点击
 
+
+### CTR预估模型
+CTR预估模型可以广泛应用于个性化推荐、信息检索、在线广告等领域，用来学习和预测用户的反馈，用户的反馈主要有点击、收藏、购买等。
+
+#### 数据
+CTR预估模型的特征数据往往包含多个特征，这些特征会根据其自身特点被编译成one-hot编码，然后将多个特征对应的编码向量链接在一起构成特征向量。
+
+高维、稀疏、以及多类别是输入给CTR预估模型的特征数据的典型特点。
+
+后续可以接很多其他模型如LR、SVM、GBDT等，这些模型的输入数据也是高维、稀疏、以及多类别。
+
+### 推荐领域GBDT + LR的做法了解吗？
+GBDT+LR 由两部分组成，其中GBDT用来对训练集提取特征作为新的训练输入数据，LR作为新训练输入数据的分类器。GBDT+LR的提出意味着特征工程可以完全交由一个独立的模型来完成，模型的输入可以是原始的特征向量，不必在特征工程上投入过多的人工筛选和模型设计的精力，真正实现了端到端的训练。
+
+### Wide&Deep模型
+推荐系统和类似的通用搜索排序问题共有的一大挑战为同时具备记忆能力与泛化能力（同时获得推荐结果准确性和扩展性）。记忆能力可以解释为学习那些经常同时出现的特征，发掘历史数据中存在的共现性。泛化能力则基于迁移相关性，探索之前几乎没有出现过的新特征组合。基于记忆能力的推荐系统通常偏向学习历史数据的样本，直接与用户己经采取的动作相关;泛化能力相比记忆能力则更趋向于提升推荐内容的多样性。推荐的内容都是精准内容，用户兴趣收敛，无新鲜感，不利于长久的用户留存；推荐内容过于泛化，用户的精准兴趣无法得到满足，用户流失风险很大。相比较推荐的准确性，扩展性倾向与改善推荐系统的多样性。
+
+Wide&Deep的右边就是DNN部分，左边的FM Function用的是线性回归，其特征组合需要人去设计。
+
+Wide&Deep模型。它混合了一个线性模型（Wide part）和Deep模型(Deep part)。这两部分模型需要不同的输入，而Wide part部分的输入，依旧依赖人工特征工程。
+![](https://img-blog.csdnimg.cn/20190624095909902.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1lhc2luMA==,size_16,color_FFFFFF,t_70)
+#### Wide 模型介绍
+Wide部分是广义线性模型(如逻辑回归)，因为它们简单，可扩展，可解释，它在工业界大规模线上推荐和排序系统中得到了广泛应用。
+
+wide模型可以通过利用交叉特征引入非线性高效的实现记忆能力，达到准确推荐的目的。wide模型通过加入一些宽泛类特征实现一定的泛化能力。但是受限与训练数据，wide模型无法实现训练数据中未曾出现过的泛化。
+
+#### deep 模型介绍
+基于嵌入的模型(如FM和DNN)可以通过学习到的低维稠密向量实现对以前没有出现过的查询项特征对也具备泛化能力，通过为每个查询和条目特征学习一个低维稠密的嵌入向量，减轻了特征工程负担。如：泛化给你推荐一些字符上看起来不那么相关，但是你可能也是需要的。比如说：你想要炸鸡，Embedding Space中，炸鸡和汉堡很接近，所以也会给你推荐汉堡。
+
+Deep部分就是个前馈网络模型，特征首先转换为低维稠密向量，再将其作为第一个隐藏层的输入，根据最终的loss来反向训练更新。向量进行随机初始化，隐藏层的激活函数通常使用ReLU。
+
+### DeepFM？
+在处理CTR预估问题中，传统的方法有一个共同的缺点：对于低阶的组合特征，学习到的比较少；但是低阶特征对于CTR也非常重要，于是Google为了同时学习低阶和高阶组合特征，提出了 Wide&Deep 模型：混合了一个 线性模型（Wide part）和 Deep 模型 (Deep part)；这两部分模型需要不同的输入，其中Wide part部分的输入仍然依赖人工特征工程；
+
+此时模型存在两个问题：
+
+1. 偏向于提取低阶或者高阶的组合特征，不能同时提取这两种类型的特征；
+2. 需要专业的领域知识来做特征工程；
+
+DeepFM 在 Wide&Deep 的基础上进行改进，成功解决了上述这两个问题，并做了一些优化；
+
+优点如下：
+
+1. 不需要预训练FM得到隐向量；
+2. 不需要人工特征工程；
+3. 能同时学习低阶和高阶的组合特征；
+4. FM模块和Deep 模块共享 Feature Embedding 部分，可以更快、更精确的训练；
 ## 排序学习设计方法
 
 排序学习的模型通常分为单点法（Pointwise Approach）、配对法（Pairwise Approach）和列表法（Listwise Approach）三大类，三种方法并不是特定的算法，而是排序学习模型的设计思路，主要区别体现在损失函数（Loss Function）、以及相应的标签标注方式和优化方法的不同。
@@ -1037,7 +1161,6 @@ Pairwise 方法的训练样例是偏序文档对，它将对文档的排序转�
 基于 Measure-specific 的 SoftRank、SVM-MAP、SoftRank、LambdaRank、LambdaMART，基于 Non-measure specific 的 ListNet、ListMLE、BoltzRank。
 
 推荐中使用较多的 Listwise 方法是 LambdaMART。
-
 
 
 ## 评价指标
@@ -1222,8 +1345,47 @@ Prompt Learning(提示学习)是指对输入文本信息按照特定模板进行
 
 prompt learning将不同的nlp任务转化为文本分类问题，但是和之前的bert finetuning的文本分类不一致。
 
-## P-Tuning 
-首先传入一些 Virtual（Pseudo）token，例如 BERT 词表中的 [unused1],[unused2],... 当然，这里的 token 数目是一个超参数，插入的位置也可以调整。将这些 Pseudo token 通过一个 Prompt Encoder 得到连续的向量 h0,...,hm，Prompt Encoder 是由 BiLSTM+MLP 组成的一个简单网络。
+prompt本意在于下游任务使用模型的时候，尽可能与预训练模型pretrain阶段的任务保持一致。
+
+我们现在用BERT的方式大多数为finetune，这会有以下两点弊端：
+
+1. finetune存在上下游阶段任务不一致的问题，fintune对BERT原来的结构破坏严重
+2. 下游任务通过标注数据驱动，finetune到一个位置，而finetune任务语言上的意义并没有告知给模型。
+
+主要就是pretrain阶段和下游任务阶段能尽可能一致，这样才能发挥出MLM的能力。但是这个过程必定有人为因素，这个过程也就是第一阶段的离散prompt
+
+第一步，构造prompt。
+
+第二步，构造MAKS token映射。
+
+pretrain阶段学习最主要的任务是MLM，那么下游任务也是用MLM
+
+那么我们可以这样加入prompt，prompt = 我感觉很[MASK]
+
+于是可以得到给BERT的token为
+
+[CLS]我很累,感觉很[MASK][SEP]
+
+构造MAKS token映射，即MASK预测的token应该怎么样映射到标签，比如负面可能的token候选有：难受,坏,烦
+
+这样我们就能让上下游一致了。
+
+prompt就是在使用语言的通顺，因为pretrain阶段的语料也是通顺的语料，所以我们构建prompt希望句子X和prompt接起来是一个通顺的话，这样上下游就更一致了。
+
+## 总结
+P-Tuning token 通过一个 Prompt Encoder 得到连续的向量 h0,...,hm，Prompt Encoder 是由 BiLSTM+MLP 组成的一个简单网络。
+
+prompt从最开始的人工设计模板，到自动prompt再到连续prompt，逐渐变的畸形。
+
+最开始的人工设计模板就是为了利用好BERT的pretrain阶段学习到的MLM能力然后用在下游，但是人工设计模型存在不稳定的问题，自动prompt效果又很差。
+
+于是连续prompt开始表演，连续prompt已经没有prompt的味道了，把prompt弄成向量，通过训练希望模型能自己得到好的prompt向量，其实就是在finetune。
+
+
+
+
+
+
 
 
 # contrastive learning 对比学习
@@ -1260,6 +1422,104 @@ NCE 要解决的是归一化参数密度估计问题。
 
 ## temperature parameter
 正确的temperature parameter设置可以使得模型更好地学到hard negatives。主要是影响infoNCE
+
+## SimCSE: Simple Contrastive Learning of Sentence Embeddings
+SIMCSE采用的方法很简单，尤其是无监督，将一个batch的数据两次经过BERT（实际上是复制batch的数据再经过BERT，可以加快效率），得到不同的两个输出，比如输入的样本x再两次经过BERT后，由于DropMask的不同，得到的输出就是不一样的，将正例和其他的负例对比损失计算loss。
+
+Dropout是在神经网络中随机关闭掉一些神经元的连接，那么关闭的神经元不一样，模型最终的输出也就不一样。因此，作者在这里通过将一句话分两次过同一个模型，但使用两种不同的dropout，这样得到的两个sentence embedding就作为模型的正例，而同一个batch中的其他embedding就变为了负例。
+
+# 强化学习（Reinforcement Learning, RL）
+## 基本概念
+### 行为策略(Behavior Policy）和目标策略(Target Policy) 
+行为策略是专门负责学习数据的获取，具有一定的随机性，总是有一定的概率选出潜在的最优动作。
+
+而目标策略借助行为策略收集到的样本以及策略提升方法提升自身性能，并最终成为最优策略。
+
+### On-policy-与Off-policy
+On-policy-与Off-policy的区别在于：更新价值所使用的方法是沿着既定的策略(on-policy) 抑或是新策略 (off-policy)
+
+Off-policy方法——将收集数据当做一个单独的任务（Q-learning，DQN），而不是将数据当做一个训练集。
+
+On-policy——行为策略与目标策略相同，认为当前的行为策略就是最优的。（SARSA算法）
+
+### 重要性采样(Importance Sampling)
+重要性采样是用一个概率分布的样本来估计某个随机变量关于另一个概率分布的期望。
+
+对于这种需要用另外一个策略的数据(off-policy)来精确估计状态值的任务，需要用到重要性采样的方法，具体做法是在对应的样本估计量上乘上一个权重。
+
+如果需要用off-policy方法估计/预测状态值或动作值时，需要用到重要性采样。
+
+### Policy-based/Value-based
+在很多问题中的最优策略是随机策略
+#### Value based
+几乎所有value-based算法都是在Policy Iteration的基础上展开的
+
+policy iteration主要包含两个步骤：
+
+1. Evaluation：根据环境的反馈，评估当前的“局面”
+2. Improvement：根据评价结果，优化当前的策略
+
+通过建模训练 Q(s, a)，测试时基于 s 选取使 Q 值最大的 a
+
+如Q-learning、DQN、SARSA等。
+#### Policy Based
+Policy based算法的基本思路和任何启发式算法的思路是一致的，即建立输入和输出之间的可微的参数模型，然后通过梯度优化搜索合适的参数
+
+这个过程具体可分为三个步骤：
+
+1. 确立策略模型
+2. 构建优势评价函数
+3. 执行梯度上升
+
+通过建模训练 p(s, a)，即基于 s 得到不同 a 的概率，测试时选取概率最大的 a。
+
+如REINFORCE
+## Q-learning
+Q-learning 的核心思想是如果我们有一个函数能够评估在当前状态下采取动作 的回报，则可以通过最大化回报得到损失函数。
+
+其自变量是当前所在的状态与进行的动作的组合，函数值代表这种组合对应的奖励值的大小。
+
+Q-learning的核心在于Q表格，通过建立Q表格来为行动提供指引，但这适用于状态和动作空间是离散且维数不高时，当状态和动作空间是高维连续时Q表格将变得十分巨大，对于维护Q表格和查找都是不现实的。
+
+## DQN
+Q表格无法解决，人们开始尝试使用函数来拟合，拟合一个函数来输出Q值，一般为输入一个状态，给出不同动作的Q值。深度学习在复杂特征提取效果良好，将RL与DL结合变得到了DQN。
+
+这将带来两个好处：
+1. 只需要存储DL的网络结构与参数
+2. 相近的的输入会得到相近的输出，泛化能力更强
+
+DQN≈Q-learning+神经网络，如果只是简单的结合将会带来两个问题
+1. 神经网络的样本之间相互独立，互不关联，而强化学习输入的状态是相互关联的
+2. 引入非线性函数，使用神经网络来近似Q表格，训练结果可能不收敛
+
+### DQN的两大改进
+1. experience replay 经验池
+   
+    DQN引入了经验池，DQN利用到了Q-learning是off-policy的特性，behavior-policy在探索或行动获取经验后会将经存储到经验池中，一条经验可以由（s,a,r,s’）来表示。target-policy随机从经验池中抽取一条经验来更新网络，这将带来两个好处：
+
+    1、随机抽取，可以切断经验的相关性
+
+    2、每一条经验可以重复学习多次，提高了经验的利用率
+2. 固定Q-target
+   
+    DQN中会有两个结构完全相同但是参数却不同的网络，一个用于预测Q估计（MainNet），一个用于预测Q现实（target），MainNet使用最新的参数，target会使用很久之前的参数。
+
+    根据targetQ与Q估计得到损失，损失函数一般采用均方误差损失
+
+    过程描述：初始化MainNet和target，根据损失函数从而更新MainNet参数，而target则固定不变，在经过多次迭代之后，将MainNet的参数全部复制给target网络，并一直如此循环迭代。这样一段时间内的targetQ是固定不变的，从而使得算法更新更加稳定
+
+## 总结
+1. On/off-policy的概念帮助区分训练的数据来自于哪里。
+
+2. Off-policy方法中不一定非要采用重要性采样，要根据实际情况采用（比如，需要精确估计值函数时需要采用重要性采样；若是用于使值函数靠近最优值函数则不一定)。
+
+1. 为什么Q-Learning算法(或DQN)身为off-policy可以不用重要性采样
+
+    Q-Learning的思想是从任意初始化的Q函数出发，以最优贝尔曼方程为标准调整Q函数。
+
+    最优贝尔曼等式右侧的期望只与状态转移分布有关而与策略无关，不论训练数据来自于哪个策略，按照Q-Learning的更新式更新都能使Q函数接近。因此，Q-Learning可以不采用重要性采样。(DQN算法同理)
+
+
 
 
 # 损失函数总结
@@ -1301,7 +1561,7 @@ $L(Y \mid f(X))=\exp [-y f(x)]$
 
 ## Hinge 合叶损失函数
 
-$L(y, f(x))=\max (0,1-y f(x))$
+$$L(y, f(x))=\max (0,1-y f(x))$$
 
 (1)hinge损失函数表示如果被分类正确, 损失为 0 , 否则损失就为  $1-y f(x)$。SVM就是使用这 个损失函数。
 
@@ -1324,7 +1584,7 @@ J(w)&=\frac{1}{2}|| w||^{2}+C \sum_{i} \max \left(0,1-y_{i}\left(w^{T} x_{i}+b\r
 &=\frac{1}{2}|| w||^{2}+C \sum_{i} L_{H i n g e}
 \end{aligned}$$
 
-SVM的损失函数可以看做是L2正则化与Hinge loss之和。
+SVM软间隔的损失函数可以看做是L2正则化与Hinge loss之和。
 
 ## 交叉熵损失函数
 
@@ -1526,7 +1786,16 @@ $ReLU=\max (0,x)$
    引入了死亡 ReLU 问题，即网络的大部分分量都永远不会更新。但这有时候也是一个优势；
     
     ReLU 不能避免梯度爆炸问题。
+### 0处导数
+可以使用次梯度来解决。
 
+次梯度方法(subgradient method)是传统的梯度下降方法的拓展，用来处理不可导的凸函数。它的优势是比传统方法处理问题范围大，劣势是算法收敛速度慢。但是，由于它对不可导函数有很好的处理方法，所以学习它还是很有必要的。
+
+$$
+c<=\frac{f(x)-f\left(x_{0}\right)}{x-x_{0}}
+$$
+
+对于relu函数，当x>0时，导数为1，当x<0时导数为0。因此relu函数在x=0的次梯度c ∈ [ 0 , 1 ]，c可以取[0,1]之间的任意值。
 ## Leaky ReLU 渗漏型整流线性单元激活函数
 
 渗漏型整流线性单元激活函数也有一个 α 值，通常取值在 0.1 到 0.3 之间。Leaky ReLU 激活函数很常用，但相比于 ELU 它也有一些缺陷，但也比 ReLU 具有一些优势。Leaky ReLU 的数学形式如下：

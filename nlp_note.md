@@ -17,7 +17,8 @@ H(X, Y)=\sum \sum-p(x, y) \log (p(x, y))
 $$
 ## 条件熵
 条件熵描述变量Y在变量X确定的情况下, 变量Y的熵还剩多少。
-$$\begin{aligned}
+$$
+\begin{aligned}
 H(Y \mid X)&=\sum \sum-p(x, y) \log (p(y \mid x))\\
 &=-\sum_{x, y} p(x, y) \log p(y \mid x)\\
 
@@ -36,7 +37,6 @@ $$
 $$
 H(X, Y)=H(X)+H(Y \mid X)=H(Y)+H(X \mid Y)=H(Y, X)
 $$
-
 ## 信息增益
 又称互信息，信息散度（information divergence)
 
@@ -47,31 +47,30 @@ $$\operatorname{I}(X,Y)=H(X)-H(X \mid Y)$$
 
 ![Alt](https://img-blog.csdn.net/20170907220115224)
 
-$$\begin{aligned} 
+$$
+\begin{aligned} 
 X\cap Y&=X+Y-(X\cup Y) \\
 I(X ; Y) &=H(X)-H(X \mid Y) \\ &=H(Y)-H(Y \mid X) \\ &=H(X)+H(Y)-H(X, Y) \\ &=H(X, Y)-H(X \mid Y)-H(Y \mid X) 
-\end{aligned}$$
+\end{aligned}
+$$
 
 $$
 \begin{aligned} I(X ; Y) &=H(X)-H(X \mid Y) \\ &=H(X)+H(Y)-H(X, Y) \\ &=\sum_{x} p(x) \log \frac{1}{p(x)}+\sum_{y} p(y) \log \frac{1}{p(y)}-\sum_{x, y} p(x, y) \log \frac{1}{p(x, y)} \\ &=\sum_{x, y} p(x, y) \log \frac{p(x, y)}{p(x) p(y)} \end{aligned}
 $$
-
-
 
 ## 交叉熵
 假设有这样一个样本集，p为它的真实分布，q为它的估计分布。如果按照真实分布p来度量识别一个样本所需要的最短编码长度的期望为信息熵，那么按照估计分布q来度量识别一个样本所需要的编码长度的期望为交叉熵。
 $$
 H(p, q)=\sum-p(x) \log (q(x))
 $$
+
 $$
 H(p, q)=E_{p}[-\log q]=H(p)+D_{k l}(p \mid\mid q)
 $$
-
 在机器学习中，真实标签的概率p和预测标签的概率q的交叉熵是一个很好的度量方法。真实标签为一个one-hot编码的向量，$q(x_i)$为softmax后的概率，让预测的概率值越来越接近于1。因此交叉上损失函数为：
 $$
 H(p, q)=\sum_{x_i=label_i}-\log (q(x_i))
 $$
-
 ## KL散度
 
 KL散度，又称为相对熵（relative entropy）、
@@ -80,10 +79,10 @@ KL散度，又称为相对熵（relative entropy）、
 $$
 D_{k l}(p \mid\mid q)=H(p, q)-H(p)
 $$
+
 $$
 D_{K L}(P \| Q)=\sum_{i} P(i) \log \frac{P(i)}{Q(i)}
 $$
-
 # 语言模型指标
 
 ## 交叉熵 困惑度
@@ -95,15 +94,16 @@ $$
 〈BOS〉或句尾标志〈EOS〉)，并且默认句子每个词出现概率相等。
 
 模型p的困惑度$PP_T(T)$是模型分配给测试集T中每一个词汇的概率倒数的几何平均值
-$$\begin{aligned}
-PP_T(T)&=2^{H_P(T)}
-\end{aligned} 
 $$
+\begin{aligned}
+PP_T(T)&=2^{H_P(T)}
+\end{aligned}
+$$
+
 $$
 =\sqrt[N]{\prod_{i=1}^{N} \frac{1}{P\left(w_{i} \mid w_{1} \ldots w_{i-1}\right)}} ~~\text{链式法则计算句子概率} \\
 =\sqrt[N]{\prod_{i=1}^{N} \frac{1}{P\left(w_{i} \mid w_{i-1}\right)}} \quad\quad \text{Bi-gram计算句子概率}
 $$
-
 困惑度可以理解为，如果每个时间步都根据语言模型计算的概率分布随机挑词，那么平均情况下，挑多少个词才能挑到正确的那个。
 
 ## 数据平滑
@@ -316,7 +316,6 @@ $P(I \mid O)=\prod_{t=1}^{n} \frac{\exp \left(\sum_{a}\right) \lambda_{a} f_{a}(
 **CRF基于条件分布建模是指在给定的随机变量  X  (具体, 对应观测序列  $o_{1}, \cdots, o_{i}$ ) 条件下。**
 
 CRF的建模公式如下：
-
 $$
 \begin{aligned}
 P(I \mid O)&=\frac{1}{Z(O)} \prod_{i} \psi_{i}\left(I_{i} \mid O\right)\\
@@ -324,7 +323,6 @@ P(I \mid O)&=\frac{1}{Z(O)} \prod_{i} \psi_{i}\left(I_{i} \mid O\right)\\
 &=\frac{1}{Z(O)} e^{\sum_{i} \sum_{k} \lambda_{k} f_{k}\left(O, I_{i-1}, I_{i}, i\right)}
 \end{aligned}
 $$
-
 ## 总结
 1. HMM -> MEMM： 
    HMM模型中存在两个假设：一是输出观察值之间严格独立，二是状态的转移过程中当前状态只与前一状态有关。但实际上序列标注问题不仅和单个词相关，而且和观察序列的长度，单词的上下文，等等相关。MEMM解决了HMM输出独立性假设的问题。因为HMM只限定在了观测与状态之间的依赖，而MEMM引入自定义特征函数，不仅可以表达观测之间的依赖，还可表示当前观测与前后多个状态之间的复杂依赖。
@@ -363,7 +361,67 @@ IDF 的简单结构并不能有效地反映单词的重要程度和特征词的�
 
 （4）对于文档中出现次数较少的重要人名、地名信息提取效果不佳。
 
+## 代码
 
+```py
+import math
+
+class TfIdf:
+    def __init__(self):
+        self.num_docs = 0
+        self.vocab = {}
+
+    def add_corpus(self, corpus):
+        self._merge_corpus(corpus)
+
+        tfidf_list = []
+        for sentence in corpus:
+            tfidf_list.append(self.get_tfidf(sentence))
+        return tfidf_list
+
+    def _merge_corpus(self, corpus):
+        """
+        统计语料库，输出词表，并统计包含每个词的文档数。
+        """
+        self.num_docs = len(corpus)
+        for sentence in corpus:
+            words = sentence.strip().split()
+            words = set(words)
+            for word in words:
+                self.vocab[word] = self.vocab.get(word, 0.0) + 1.0
+
+    def _get_idf(self, term):
+        """
+        计算 IDF 值
+        """
+        return math.log(self.num_docs / (self.vocab.get(term, 0.0) + 1.0))
+
+    def get_tfidf(self, sentence):
+        tfidf = {}
+        terms = sentence.strip().split()
+        terms_set = set(terms)
+        num_terms = len(terms)
+        for term in terms_set:
+            # 计算 TF 值
+            tf = float(terms.count(term)) / num_terms
+            # 计算 IDF 值，在实际实现时，可以提前将所有词的 IDF 提前计算好，然后直接使用。
+            idf = self._get_idf(term)
+            # 计算 TF-IDF 值
+            tfidf[term] = tf * idf
+        return tfidf
+
+corpus = [
+    "What is the weather like today",
+    "what is for dinner tonight",
+    "this is question worth pondering",
+    "it is a beautiful day today"
+]
+
+tfidf = TfIdf()
+tfidf_values = tfidf.add_corpus(corpus)
+for tfidf_value in tfidf_values:
+    print(tfidf_value)
+```
 # 混淆矩阵
 ## 基本概念
 准确率、精确率、查准率、查全率、真阳性率、假阳性率、ROC、AUC、PRC、KS、F1
@@ -408,16 +466,13 @@ AUC越接近 1 越好是肯定的，但是并不是越接近 0 就越差，最�
 对真实label排序，统计预测label的逆序对数
 
 在有M个正样本,N个负样本的数据集里。一共有M*N对样本（一对样本即，一个正样本与一个负样本，注意这里的定义！他不是任意抽两个样本！）。统计这M*N对样本里，正样本的预测概率大于负样本的预测概率的个数。
-
 $$
 \frac{\sum I\left(P_{\text {positive }}, P_{\text {negtive }}\right)}{M \times N}
 $$
-
 其中
 $$
 I\left(P_{\text {positive }}, P_{\text {negtive }}\right)=\left\{\begin{array}{l}1, P_{\text {positive }}>P_{\text {positive }} \\ 0.5, P_{\text {positice }}=P_{\text {negtive }} \\ 0, P_{\text {positive }}<P_{\text {negtive }}\end{array}\right.
 $$
-
 1. 统计所有正样本个数P，负样本个数N；
 2. 遍历所有正负样本对，统计正样本预测值大于负样本预测值的样本总个数number
 3. AUC = number / (P * N)
@@ -451,7 +506,6 @@ $F_{1}=\frac{2}{\frac{1}{\text { precision }}+\frac{1}{\text { recall }}}=2 \fra
 BLEU是IBM在2002提出的，用于机器翻译任务的评价。
 
 BLEU还有许多变种。根据n-gram可以划分成多种评价指标，常见的指标有BLEU-1、BLEU-2、BLEU-3、BLEU-4四种，其中n-gram指的是连续的单词个数为n。BLEU-1衡量的是单词级别的准确性，更高阶的bleu可以衡量句子的流畅性。它的总体思想就是准确率(精准率、查准率)。
-
 $$
 \begin{aligned}
 &p_{n}=\frac{\sum_{C \in\{\text { Candidates }\}} \sum_{n-\text { grame }\in C} \text { Count }_{\text {clip }}(n-\text { gram })}{\sum_{C' \in\{\text { Candidates }\}} \sum_{n-\text { gram' } \in C'} \operatorname{Count}(n-\text { gram })}\\
@@ -459,12 +513,10 @@ $$
 &\operatorname{Ref}(n-g r a m)=\max \left(\operatorname{Ref}^{j}(n-g r a m)\right), j=1,2, \ldots, M
 \end{aligned}
 $$
-
 Count是N-gram在机器翻译译文中的出现次数，Ref是参考译文中的N-gram出现次数。
 reference是参考译文，candidates是预测句。
 
 n的总数为N，一般N取4，用$\omega_n$表示权重，一般为1/4，那么综合的$p_{avg}$为
-
 $$
 p_{\text {avg }}=e^{\sum_{n=1}^{N} \omega_{n} \log \left(p_{n}\right)}
 $$
@@ -479,7 +531,6 @@ $$
 $$
 B L E U=B P \cdot p_{\text {avg }}=B P \cdot e^{\sum_{n=1}^{N} \omega_{n} \log \left(p_{n}\right)}
 $$
-
 # Subword
 
 ## tokenization技术的对比
@@ -556,7 +607,6 @@ WordPiece算法可以看作是BPE的变种。不同点在于，WordPiece基于�
 
 
 假设把相邻位置的x和y两个子词进行合并，合并后产生的子词记为z，此时句子$S$似然值的变化可表示为：
-
 $$
 log P(t_z)-(logP(t_x)+logP(t_y))=\frac{logP(t_z)}{logP(t_x)P(t_y)} 
 $$

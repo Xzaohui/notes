@@ -1,4 +1,7 @@
 # python
+## deque 双向队列 
+
+appendleft,extendleft
 
 ## 堆 heapq
 ```python
@@ -34,6 +37,26 @@ class Solution:
         return result
 ```
 前K个高频词 https://leetcode.cn/problems/top-k-frequent-elements/
+
+## strip
+Python strip() 方法用于移除字符串头尾指定的字符（默认为空格或换行符）或字符序列。
+
+注意：该方法只能删除开头或是结尾的字符，不能删除中间部分的字符。
+## match、search、findall、finditer
+都可以用r''正则表达式来匹配
+
+match方法从头开始找，找到就返回，否则为None，只匹配一次（必须开头就有这个字符串）
+
+search从头依次搜索，只匹配一次
+
+findall方法：返回列表，匹配所有
+
+返回string中所有相匹配的全部字串，返回形式为迭代器。
+## bisect
+查找： bisect.bisect/bisect_left/bisect_right(array, item)
+
+插入： bisect.insort/insort_left/insort_right(array,item)
+
 # dfs
 ```python
 def dfs(self,res,str,l,r,n):
@@ -66,16 +89,57 @@ def letterCombinations(self, digits: str) -> List[str]:
 https://leetcode.cn/problems/generate-parentheses/
 
 https://leetcode.cn/problems/letter-combinations-of-a-phone-number/
-## match、search、findall、finditer
-都可以用r''正则表达式来匹配
 
-match方法从头开始找，找到就返回，否则为None，只匹配一次（必须开头就有这个字符串）
+# bfs
+```py
+search_list=[]
+deep=0
+search_list.append((beginWord,0))
 
-search从头依次搜索，只匹配一次
+while len(search_list):
+    word,deep = search_list.pop(0)
+    if word == endWord:
+        deep+=1
+        break
+    for i in range(len(word)):
+        for j in range(26):
+            new_word = word[:i] + chr(ord('a') + j) + word[i+1:]
+            if new_word in wordList:
+                search_list.append((new_word,deep+1))
+                wordList.remove(new_word)
+```
 
-findall方法：返回列表，匹配所有
+双向BFS即是选择短的list去bfs
+```py
+def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int:
+        if endWord not in wordList:
+            return 0
+        l = len(endWord)
+        ws = set(wordList)
+        head = {beginWord}
+        tail = {endWord}
+        tmp = list('abcdefghijklmnopqrstuvwxyz')
+        res = 1
+        while head:
+            if len(head) > len(tail):
+                head, tail = tail, head
+            q = set()
+            for cur in head:
+                for i in range(l):
+                    for j in tmp:
+                        word = cur[:i] + j + cur[i+1:]
+                        if word in tail:
+                            return res + 1
+                        if word in ws:
+                            q.add(word)
+                            ws.remove(word)
+            head = q
+            res += 1
+        return 0
+```
+https://leetcode.cn/problems/word-ladder/
 
-返回string中所有相匹配的全部字串，返回形式为迭代器。
+
 
 # 分治
 ```py
@@ -134,58 +198,8 @@ def longestCommonPrefix(self, strs):
 # 递归
 https://lyl0724.github.io/2020/01/25/1/ 
 
-# bfs
-```py
-search_list=[]
-deep=0
-search_list.append((beginWord,0))
 
-while len(search_list):
-    word,deep = search_list.pop(0)
-    if word == endWord:
-        deep+=1
-        break
-    for i in range(len(word)):
-        for j in range(26):
-            new_word = word[:i] + chr(ord('a') + j) + word[i+1:]
-            if new_word in wordList:
-                search_list.append((new_word,deep+1))
-                wordList.remove(new_word)
-```
-
-双向BFS即是选择短的list去bfs
-```py
-def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int:
-        if endWord not in wordList:
-            return 0
-        l = len(endWord)
-        ws = set(wordList)
-        head = {beginWord}
-        tail = {endWord}
-        tmp = list('abcdefghijklmnopqrstuvwxyz')
-        res = 1
-        while head:
-            if len(head) > len(tail):
-                head, tail = tail, head
-            q = set()
-            for cur in head:
-                for i in range(l):
-                    for j in tmp:
-                        word = cur[:i] + j + cur[i+1:]
-                        if word in tail:
-                            return res + 1
-                        if word in ws:
-                            q.add(word)
-                            ws.remove(word)
-            head = q
-            res += 1
-        return 0
-```
-https://leetcode.cn/problems/word-ladder/
-
-# deque 双向队列 
-
-appendleft,extendleft
+# 基于比较操作的排序算法平均时间复杂度的下界为O(n log n)，最坏情况下为O(n^2)，空间复杂度为O(n)。
 
 # 前中后缀转换 
 中缀转后缀转换过程需要用到栈，具体过程如下：
@@ -236,10 +250,6 @@ appendleft,extendleft
 
 后缀运算 右向左扫描，其他一样
 
-# bisect
-查找： bisect.bisect/bisect_left/bisect_right(array, item)
-
-插入： bisect.insort/insort_left/insort_right(array,item)
 
 # 树
 
@@ -335,7 +345,18 @@ def right_rotation(root):
 ## 红黑树
 
 前身是4阶B树
-
+## 公祖问题
+    
+```py
+def lowestCommonAncestor(root, p, q):
+    if root is None or root == p or root == q: #如果root是p或者q，那么直接返回，若p或q是公祖则后面也不用找了
+        return root
+    left = lowestCommonAncestor(root.left, p, q)
+    right = lowestCommonAncestor(root.right, p, q)
+    if left and right:      # 如果左右子树都不为空，说明p和q分别在左子树和右子树上，那么这个节点就是公共祖先
+        return root
+    return left if left else right # 如果左右子树有一个为空，说明p和q在同一侧，返回前一侧的子树
+```
 ## Trie 树
 也叫“字典树”。顾名思义，它是一个树形结构。它是一种专门处理字符串匹配的数据结构，用来解决在一组字符串集合中快速查找某个字符串的问题。
 
@@ -372,6 +393,12 @@ Trie 树的本质，就是利用字符串之间的公共前缀，将重复的前
 单模式串匹配算法，是在一个模式串和一个主串之间进行匹配，也就是说，在一个主串中查找一个模式串。
 
 多模式串匹配算法，就是在多个模式串和一个主串之间做匹配，也就是说，在一个主串中查找多个模式串。（AC自动机）
+
+AC自动机是KMP和trie的结合体。KMP算法适用于单模式串的匹配，而AC自动机适合多模式串的匹配，KMP是AC自动机的特殊情况。
+
+在KMP中，初始值nex[0] = nex[1] = 0, 另外如果我们需要求出nex[i]，则需要用到nex[0]-nex[i-1],在AC自动机中，如果我们需要求出第i层点的nex值，则需要使用到i-1层（包括）前面的nex值。
+
+由于每次向下求一层的nex，所以用bfs。
 
 ### 应用
 
