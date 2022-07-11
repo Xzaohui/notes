@@ -43,7 +43,8 @@ Python strip() 方法用于移除字符串头尾指定的字符（默认为空�
 
 注意：该方法只能删除开头或是结尾的字符，不能删除中间部分的字符。
 ## match、search、findall、finditer
-都可以用r''正则表达式来匹配
+都可以用r''正则表达式来匹配，也可以是普通的字符串
+re.findall(r'',str)
 
 match方法从头开始找，找到就返回，否则为None，只匹配一次（必须开头就有这个字符串）
 
@@ -52,11 +53,55 @@ search从头依次搜索，只匹配一次
 findall方法：返回列表，匹配所有
 
 返回string中所有相匹配的全部字串，返回形式为迭代器。
+
+## 查找方法
+字符串序列.find(子串,开始位置下标,结束位置下标)，返回这个子串开始的位置下标，否则-1
+
+字符串序列.index(子串,开始位置下标,结束位置下标)，返回这个子串开始的位置下标
+
+字符串序列.count(子串,开始位置下标,结束位置下标)，返回某个子串在字符串中出现的次数
+
+rfind()：和find()功能相同，但查找方向从右侧开始
+
+rindex()：和index()功能相同，但查找方向从右侧开始
 ## bisect
 查找： bisect.bisect/bisect_left/bisect_right(array, item)
 
 插入： bisect.insort/insort_left/insort_right(array,item)
+## nonlocal/global
+```python
+def dome_fun():
+    num = 0
+    def dome_fun_1():
+        nonlocal num
+        num += 1
+        return num
+    return num
 
+count = 0
+def global_test():
+    global count
+    count += 1
+    print(count)
+global_test()
+```
+1. 作用对象不同：
+
+    nonlocal作用于外部内嵌函数的变量；
+
+    global作用于全局变量。
+
+2. global可以改变全局变量，同时可以定义新的全局变量；nonlocal只能改变外层函数变量，不能定义新的外层函数变量，并且nonlocal也不能改变全局变量。
+
+3. 声名：
+
+    global声名此变量为全局变量；nonlocal声名此变量与外层同名变量为相同的变量。
+
+4. 使用的范围不同：
+
+    global关键字可以用在任何地方，包括最上层函数中和嵌套函数中；
+
+    nonlocal关键字只能用于嵌套函数中，并且外层函数中必须定义了相应的局部变量，否则会发生错误
 # dfs
 ```python
 def dfs(self,res,str,l,r,n):
@@ -194,6 +239,18 @@ def longestCommonPrefix(self, strs):
         return res
 ```
 
+# 无重复字符的最长子串
+```py
+def lengthOfLongestSubstring(self, s: str) -> int:
+    st = {}
+    i, ans = 0, 0
+    for j in range(len(s)):
+        if s[j] in st:  #字符再次出现
+            i = max(st[s[j]], i) # 看上一次出现的位置是在当前起点的前面还是后面，前面不用动，后面要向前移动
+        ans = max(ans, j - i + 1)
+        st[s[j]] = j + 1 #记录每一个字符最后出现的位置
+    return ans
+```
 
 # 递归
 https://lyl0724.github.io/2020/01/25/1/ 
@@ -430,6 +487,26 @@ class Solution:
 
 # dp
 
+## 编辑距离
+```py
+def minDistance(self, word1: str, word2: str) -> int:
+        word1=list(word1)
+        word2=list(word2)
+        n,m=len(word1),len(word2)
+        dp=[[0]*(len(word2) + 1) for _ in range(len(word1) + 1)]
+        for i in range(1,n+1):
+            dp[i][0]=i
+        for i in range(1,m+1):
+            dp[0][i]=i
+        for i in range(1,n+1):
+            for j in range(1,m+1):
+                if word1[i-1]==word2[j-1]:
+                    dp[i][j]=dp[i-1][j-1] #相同直接不用增加操作数
+                else:
+                    dp[i][j]=min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1])+1#左、上、左上的情况需要多变换一次
+        return dp[-1][-1]
+```
+
 ## 跳表问题
 
 ```py
@@ -437,14 +514,136 @@ for i in range(len(nums)-2,-1,-1):
     jump[i]=min([jump[j] for j in range(i+1,min(i+nums[i]+1,len(nums)))])+1
 return jump[0]
 ```
-## 买卖股票的最佳时机含手续费
+## 买卖股票
+### 只买卖一次
 ```py
-dp1 = [0 for _ in range(n)]#第i天手上有股票时的最大收益
-dp2 = [0 for _ in range(n)]#第i天手上无股票时的最大收益
-dp1[0] = -prices[0]
-for i in range(1,n):
-    dp1[i] = max(dp1[i-1], dp2[i-1] - prices[i]) #准备抄底
-    dp2[i] = max(dp2[i-1], dp1[i-1] + prices[i] - fee) #见好就收
-return max(dp1[n-1], dp2[n-1])
+def maxProfit(self, prices: List[int]) -> int:
+    length = len(prices)
+    if len == 0:
+        return 0
+    dp = [[0] * 2 for _ in range(length)]
+    dp[0][0] = -prices[0]
+    dp[0][1] = 0
+    for i in range(1, length):
+        dp[i][0] = max(dp[i-1][0], -prices[i]) # 只买卖一次，不会把新的盈利再买卖。
+        dp[i][1] = max(dp[i-1][1], prices[i] + dp[i-1][0])
+    return dp[-1][1]
 ```
 
+
+### 多次买卖（含手续费）
+```py
+def maxProfit(self, prices: List[int]) -> int:
+    length = len(prices)
+    dp = [[0] * 2 for _ in range(length)]
+    dp[0][0] = -prices[0] #第i天手上有股票时的最大收益
+    dp[0][1] = 0 #第i天手上无股票时的最大收益
+    for i in range(1, length):
+        dp[i][0] = max(dp[i-1][0], dp[i-1][1] - prices[i]) #注意这里是和121. 买卖股票的最佳时机唯一不同的地方
+        dp[i][1] = max(dp[i-1][1], dp[i-1][0] + prices[i]) #- fee 就是有手续费
+    return dp[-1][1]
+```
+### 规定次数买卖
+```py
+def maxProfit(self, k: int, prices: List[int]) -> int:
+    if len(prices) == 0:
+        return 0
+    dp = [[0] * (2*k+1) for _ in range(len(prices))]
+    for j in range(1, 2*k, 2):
+        dp[0][j] = -prices[0]
+    for i in range(1, len(prices)):
+        for j in range(0, 2*k-1, 2):
+            dp[i][j+1] = max(dp[i-1][j+1], dp[i-1][j] - prices[i])
+            dp[i][j+2] = max(dp[i-1][j+2], dp[i-1][j+1] + prices[i])
+    return dp[-1][2*k]
+```
+## 背包
+
+### 01背包问题
+
+01背包：必须倒序遍历数组。
+
+完全背包：顺序遍历。
+
+分割 等和子集、最相似子集：背包大小为和的一半。
+
+目标和，有+-符号组合：转换为letf-right=traget，left+right=sum，left=sum+target/2。再转化为01背包。
+
+一和零：二维01背包问题，两个容量限制。注意两个都要倒序计算。
+```py
+class Solution:
+    def findMaxForm(self, strs: List[str], m: int, n: int) -> int:
+        dp=[[0]*(n+1) for _ in range(m+1)]
+        for i in range(len(strs)):
+            for j in range(m,-1,-1):
+                for k in range(n,-1,-1):
+                    if j >= strs[i].count("0") and k >= strs[i].count("1"):
+                        dp[j][k]=max(dp[j][k],dp[j-strs[i].count("0")][k-strs[i].count("1")]+1)
+
+        return dp[-1][-1]
+```
+### 完全背包问题
+
+如果求组合数就是外层for循环遍历物品，内层for遍历背包。
+
+如果求排列数就是外层for遍历背包，内层for循环遍历物品。
+
+518.零钱兑换问题，没有顺序要求。377.组合总和有顺序要求。
+```py
+for coin in coins: #零钱兑换问题
+    for i in range(1,amount+1):
+        if coin <=i:
+            dp[i]+=dp[i-coin]
+
+for i in range(1,target+1):#组合总和
+            for num in nums:
+                if num <=i:
+                    dp[i]+=dp[i-num]
+
+        return dp[-1]
+```
+### 多重背包问题
+有N种物品和一个容量为V 的背包。第i种物品最多有Mi件可用，每件耗费的空间是Ci ，价值是Wi 。求解将哪些物品装入背包可使这些物品的耗费的空间 总和不超过背包容量，且价值总和最大。
+
+转化成01背包，把每个物品扩展Mi次。
+
+## 成环就考虑两种，一不取头，二不取尾
+
+## 树形后序遍历 dp
+337. 打家劫舍 III
+
+https://leetcode.cn/problems/house-robber-iii/
+```py
+def trob(root):
+   if root == None:
+       return [0,0]
+   r=trob(root.right)
+   l=trob(root.left)
+   return [root.val+r[1]+l[1],max(r)+max(l)] #不抢也要返回他的max
+return max(trob(root))
+```
+
+# 最短路径问题
+
+## dijkstra 算法
+```py
+dijkstra(graph,d[], start):
+    for each vertex v in graph:
+        d[v] = inf
+    d[start] = 0
+    for i in range(n):
+        u=使d[u]最小的顶点，且未被访问
+        vis[u] = true
+        for each vertex v in graph[u]:
+            if vis[u] == False and d[v] > d[u] + w[u][v]:
+                d[v] = d[u] + w[u][v]
+    return d
+```
+## Floyd算法
+```py
+for each vertex v in graph:
+    for each vertex u in graph:
+        for each vertex w in graph:
+            if d[u][v] + d[v][w] < d[u][w]:
+                d[u][w] = d[u][v] + d[v][w]
+```
