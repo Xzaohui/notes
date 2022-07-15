@@ -41,18 +41,25 @@ class Solution:
 ## strip
 Python strip() 方法用于移除字符串头尾指定的字符（默认为空格或换行符）或字符序列。
 
+str.strip([chars]);
+
+还有lstrip，rstrip
+
 注意：该方法只能删除开头或是结尾的字符，不能删除中间部分的字符。
 ## match、search、findall、finditer
 都可以用r''正则表达式来匹配，也可以是普通的字符串
+
 re.findall(r'',str)
 
-match方法从头开始找，找到就返回，否则为None，只匹配一次（必须开头就有这个字符串）
+^：匹配字符串开头，$匹配字符串结尾
+
+match方法从头开始找，找到就返回，否则为None，只匹配一次（必须开头就有这个字符串），用group()可以获取匹配的字符串
 
 search从头依次搜索，只匹配一次
 
-findall方法：返回列表，匹配所有
+findall方法：返回列表，匹配所有，*获取所有匹配的字符串，去掉了列表结构
 
-返回string中所有相匹配的全部字串，返回形式为迭代器。
+finditer：返回string中所有相匹配的全部字串，返回形式为迭代器。
 
 ## 查找方法
 字符串序列.find(子串,开始位置下标,结束位置下标)，返回这个子串开始的位置下标，否则-1
@@ -102,6 +109,17 @@ global_test()
     global关键字可以用在任何地方，包括最上层函数中和嵌套函数中；
 
     nonlocal关键字只能用于嵌套函数中，并且外层函数中必须定义了相应的局部变量，否则会发生错误
+## zip
+```python
+zip(iterable1, iterable2, ...)
+#54. 螺旋矩阵
+class Solution:
+    def spiralOrder(self, matrix: List[List[int]]) -> List[int]:
+        if len(matrix)==1:
+            return list(matrix[0])
+        return list(matrix[0])+list(self.spiralOrder(list(zip(*(matrix[1:])))[::-1]))
+```
+
 # dfs
 ```python
 def dfs(self,res,str,l,r,n):
@@ -646,4 +664,223 @@ for each vertex v in graph:
         for each vertex w in graph:
             if d[u][v] + d[v][w] < d[u][w]:
                 d[u][w] = d[u][v] + d[v][w]
+```
+
+# 是否有重复子串
+return s in (s+s)[1:-1]
+
+假设母串S是由子串s重复N次而成， 则 S+S则有子串s重复2N次， 那么现在有： S=Ns， S+S=2Ns， 其中N>=2。 如果条件成立， S+S=2Ns, 掐头去尾破坏2个s，S+S中还包含2*（N-1）s, 又因为N>=2, 因此S在(S+S)[1:-1]中必出现一次以上
+
+# 76. 最小覆盖子串
+采用类似滑动窗口的思路，即用两个指针表示窗口左端left和右端right。 向右移动right，保证left与right之间的字符串足够包含需要包含的所有字符， 而在保证字符串能够包含所有需要的字符条件下，向右移动left，保证left的位置对应为需要的字符，这样的 窗口才有可能最短，此时只需要判断当期窗口的长度是不是目前来说最短的，决定要不要更新minL和minR（这两个 变量用于记录可能的最短窗口的端点）
+
+搞清楚指针移动的规则之后，我们需要解决几个问题，就是怎么确定当前窗口包含所有需要的字符，以及怎么确定left的 位置对应的是需要的字符。 这里我们用一个字典mem保存目标字符串t中所含字符及其对应的频数。比如t="ABAc",那么字典mem={"A":2,"B":1,"c":1}, 只要我们在向右移动right的时候，碰到t中的一个字符，对应字典的计数就减一，那么当字典这些元素的值都不大于0的时候， 我们的窗口里面就包含了所有需要的字符；但判断字典这些元素的值都不大于0并不能在O(1)时间内实现，因此我们要用一个变量 来记录我们遍历过字符数目，记为t_len，当我们遍历s的时候，碰到字典中存在的字符且对应频数大于0，就说明我们还没有找到 足够的字符，那么就要继续向右移动right，此时t_len-=1；直到t_len变为0，就说明此时已经找到足够的字符保证窗口符合要求了。
+
+所以接下来就是移动left。我们需要移动left，直到找到目标字符串中的字符，同时又希望窗口尽可能短，因此我们就希望找到的 left使得窗口的开头就是要求的字符串中的字符，同时整个窗口含有所有需要的字符数量。注意到，前面我们更新字典的时候， 比如字符"A",如果我们窗口里面有10个A，而目标字符串中有5个A，那此时字典中A对应的计数就是-5，那么我要收缩窗口又要保证 窗口能够包含所需的字符，那么我们就要在收缩窗口的时候增加对应字符在字典的计数，直到我们找到某个位置的字符A，此时字典中 的计数为0，就不可以再收缩了（如果此时继续移动left，那么之后的窗口就不可能含有A这个字符了），此时窗口为可能的最小窗口，比较 更新记录即可。
+```python
+class Solution:
+    def minWindow(self, s: str, t: str) -> str:
+        char_count=defaultdict(int)
+        for char in t:
+            char_count[char]+=1
+        t_len=len(t)  # 统计当前区间包含t中字母的个数
+        min_left,min_right=0,len(s)
+        left=0
+        res=''
+        for right,char in enumerate(s):
+            if char_count[char]>0:
+                t_len-=1
+            char_count[char]-=1
+            if t_len==0:
+                while char_count[s[left]]<0:
+                    char_count[s[left]]+=1
+                    left+=1
+                if right-left<min_right-min_left:
+                    min_left,min_right = left,right
+                    res=s[min_left:right+1]
+                char_count[s[left]]+=1
+                t_len+=1
+                left+=1
+        return res
+```
+
+# rand 问题
+(randX() - 1)*Y + randY() 可以等概率的生成[1, X * Y]范围的随机数
+
+# 最长上升子序列
+```python
+#
+# retrun the longest increasing subsequence
+# @param arr int整型一维数组 the array
+# @return int整型一维数组
+#
+class Solution:
+    def LIS(self , arr ):
+        
+        # 1. 动态规划，超时
+        if len(arr) < 2:
+            return arr
+        
+        dp = [1] * len(arr)
+        for i in range(1, len(arr)):
+            for j in range(i):
+                if arr[i] > arr[j]:
+                    dp[i] = dp[j] + 1
+        
+        ansLen = max(dp)
+        ansVec = []
+        for i in range(len(arr)-1, -1, -1):
+            if dp[i] == ansLen:
+                ansVec.insert(0, arr[i])
+                ansLen -= 1
+                
+        return ansVec
+        
+        
+        # 2. 贪心 + 二分
+        if len(arr) < 2:
+            return arr
+        
+        ansVec = [arr[0]] # 记录以某一元素结尾的最长递增子序列，初始化为数组第一位元素
+        maxLen = [1] # 记录下标i处最长递增子序列的长度，初始化为[1](下标0此时只有一个数字，长度为1)
+        
+        for num in arr[1:]:
+            if num > ansVec[-1]:
+                ansVec.append(num)  # 更新以num为结尾元素的最长递增子序列
+                maxLen.append(len(ansVec))  # 同时更新此时最长递增子序列的长度
+            else:
+                """
+                for i in range(len(ansVec)):
+                    if ansVec[i] >= num:
+                        ansVec[i] = num
+                        maxLen.append(i+1)
+                        break
+                """
+                # 二分查找第一个比num大的数字，替换
+                # 此时以该元素为结尾的最长递增子序列的长度为其在ansVec中的下标+1
+                left, right = 0, len(ansVec)-1
+                while left < right:
+                    mid = (left + right) // 2
+                    if ansVec[mid] < num:
+                        left = mid+1
+                    elif ansVec[mid] == num:
+                        left = mid
+                        break
+                    else:
+                        if ansVec[mid-1] < num:
+                            left = mid
+                            break
+                        else:
+                            right = mid-1
+                ansVec[left] = num
+                maxLen.append(left+1)
+        
+        # ansVec不一定是最后结果，求解按字典序最小的结果
+        # 此时我们知道最长长度为ansLen，从后向前遍历maxLen，
+        # 遇到第一个maxLen[i]==ansLen的下标i处元素arr[i]即为所求，
+        # 例：
+        # [1,2,8,6,4] -> maxLen [1,2,3,3,3] -> ansLen=3
+        # [1,2,8] -> [1,2,6] -> [1,2,4] 长度一致的答案，字典序越小越靠后
+        ansLen = len(ansVec)
+        for i in range(len(arr)-1, -1, -1):
+            if maxLen[i] == ansLen:
+                ansVec[ansLen-1] = arr[i]
+                ansLen -= 1
+                
+        return ansVec
+```
+# 找环形链表的入口点
+
+首先，可以使用快慢指针找环
+
+如果存在环，那么快慢指针会在环内相遇，但是相遇的点，不一定是环的起点，慢指针走了（a+b）的长度
+
+将快指针放回head，快慢指针以相同的步进移动，最终，会在环的入口相遇，慢指针再走（a+b）的长度会回到原点，只走a的长度会回到环的入口，因此再从head同时和慢指针开始走就行了
+
+你吹过我来时的风，我回到故乡，竟再次在原点相遇
+```python
+class Solution:
+    def detectCycle(self, head: ListNode) -> ListNode:
+        fast = head
+        slow = head
+        while fast != None and fast.next != None:
+            fast = fast.next.next
+            slow = slow.next
+            if fast == slow:
+                fast = head
+                while fast != slow:
+                    fast = fast.next
+                    slow = slow.next
+                return slow
+        return None
+```
+# 两数之和
+```python
+#先排序再双指针
+class Solution:
+    def twoSum(self, nums, target):
+        """
+        :type nums: List[int]
+        :type target: int
+        :rtype: List[int]
+        """
+        sorted_id = sorted(range(len(nums)), key=lambda k: nums[k])
+        head = 0
+        tail = len(nums) - 1
+        sum_result = nums[sorted_id[head]] + nums[sorted_id[tail]]
+        while sum_result != target:
+            if sum_result > target:
+                tail -= 1
+            elif sum_result < target:
+                head += 1
+            sum_result = nums[sorted_id[head]] + nums[sorted_id[tail]]
+        return [sorted_id[head], sorted_id[tail]]
+#字典查找
+class Solution:
+    def twoSum(self, nums: List[int], target: int) -> List[int]:
+        hashmap = {}
+        for index, num in enumerate(nums):
+            another_num = target - num
+            if another_num in hashmap:
+                return [hashmap[another_num], index]
+            hashmap[num] = index
+        return None
+```
+# 接雨水
+```python
+class Solution:
+    def trap(self, height: List[int]) -> int:
+        left=[0 for _ in range(len(height))]
+        right=[0 for _ in range(len(height))]
+        for i in range(1,len(height)):
+            left[i]=max(left[i-1],height[i-1])
+        for i in range(len(height)-2,-1,-1):
+            right[i]=max(right[i+1],height[i+1])
+        res=0
+        for i in range(len(height)):
+            level=min(left[i],right[i])
+            res+=max(0,level-height[i])
+        return res
+
+# 首先，把h1和h2的面积用标记起来，然后你就会发现：
+
+# h1+h2=2*(柱子面积+水面积)+h1和h2不重叠区域面积
+
+# 因为 柱子面积+水面积+h1和h2不重叠区域面积 = 矩形面积(最高柱子高度*数组长度)
+
+# 所以 h1+h2 = 矩形面积面积+柱子面积+水面积
+
+# 所以 水面积 = h1+h2-矩形面积-柱子面积
+
+# 倒数第二行代码 -height[i] 其实就是减去柱子的面积，所以循环结束后，再减去矩形面积就是最后结果
+class Solution:
+    def trap(self, height: List[int]) -> int:
+        ans = 0
+        h1 = 0
+        h2 = 0
+        for i in range(len(height)):
+            h1 = max(h1,height[i])
+            h2 = max(h2,height[-i-1])
+            ans = ans + h1 + h2 -height[i]
+        return  ans - len(height)*h1
 ```
