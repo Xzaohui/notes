@@ -1,16 +1,38 @@
 # python
 ## deque 双向队列 
-
 appendleft,extendleft
 
-## 堆 heapq
-```python
-def __lt__(self, other):
-            return self.val < other.val
-        ListNode.__lt__ = __lt__
-```
-让类也能排序做对比建堆 https://leetcode.cn/problems/merge-k-sorted-lists/
+## itertools.groupby
+groupby支持两个参数，第一个参数是需要迭代的对象，第二个函数key代表分组依据，如果为none则表示使用迭代对象中的元素作为分组依据
 
+[(ch, list(seq)) for ch, seq in groupby(text)]
+## collections.Counter
+该方法用于统计某序列中每个元素出现的次数，以键值对的方式存在字典中。
+
+max(counts.keys(),key=lambda x:counts[x])
+
+max(counts.keys(),key=counts.get)
+
+返回统计最多的单词
+## all
+all(） 函数用于判断给定的可迭代参数 iterable 中的所有元素是否都为 True，否则返回 False。
+## max/min
+max/min其实是按照元素里面的第一个元素的排列顺序，输出最大值。如果第一个元素相同，则比较第二个元素，输出最大值。
+
+max([max(d) for d in dp])
+
+max(map(max, dp))
+## 反转链表
+充分利用python可以多对多赋值的特性
+```python
+def reverse(head):
+    pre, cur = None, head
+    while cur:
+        cur.next, pre, cur = pre, cur, cur.next
+    return pre
+```
+
+## 堆 heapq
 ```py
 import heapq
 class Solution:
@@ -118,213 +140,20 @@ class Solution:
         if len(matrix)==1:
             return list(matrix[0])
         return list(matrix[0])+list(self.spiralOrder(list(zip(*(matrix[1:])))[::-1]))
-```
 
-# dfs
+# 48. 旋转图像矩阵
+matrix[:] = zip(*matrix[::-1])
+```
+## 类的运算符重载
+
+比较运算符（<，<=，>，> =，==和！=）可以通过为__lt __，__ le __，__ gt __，__ ge __，__ eq__和__ne__魔术方法提供定义来重载，以比较类的对象。 
+
 ```python
-def dfs(self,res,str,l,r,n):
-        if l>n or r>n or r>l:
-            return
-        if l==n and r==n:
-            res.append(str)
-            return
-        self.dfs(res,str+"(",l+1,r,n)
-        self.dfs(res,str+")",l,r+1,n)
-   def generateParenthesis(self, n: int) -> List[str]:
-        res=[]
-        self.dfs(res,"",0,0,n)
-        return res
+def __lt__(self, other):
+    return self.val < other.val
+ListNode.__lt__ = __lt__
 ```
-
-```py
-def letterCombinations(self, digits: str) -> List[str]:
-        dic={2:"abc",3:"def",4:"ghi",5:"jkl",6:"mno",7:"pqrs",8:"tuv",9:"wxyz"}
-        if len(digits)==0:
-            return []
-        if len(digits)==1:
-            return list(dic[int(digits)])
-        else:
-            return [i+j for i in self.letterCombinations(digits[0]) for j in self.letterCombinations(digits[1:])]
-
-```
-全排列+剪枝
-
-https://leetcode.cn/problems/generate-parentheses/
-
-https://leetcode.cn/problems/letter-combinations-of-a-phone-number/
-
-# bfs
-```py
-search_list=[]
-deep=0
-search_list.append((beginWord,0))
-
-while len(search_list):
-    word,deep = search_list.pop(0)
-    if word == endWord:
-        deep+=1
-        break
-    for i in range(len(word)):
-        for j in range(26):
-            new_word = word[:i] + chr(ord('a') + j) + word[i+1:]
-            if new_word in wordList:
-                search_list.append((new_word,deep+1))
-                wordList.remove(new_word)
-```
-
-双向BFS即是选择短的list去bfs
-```py
-def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int:
-        if endWord not in wordList:
-            return 0
-        l = len(endWord)
-        ws = set(wordList)
-        head = {beginWord}
-        tail = {endWord}
-        tmp = list('abcdefghijklmnopqrstuvwxyz')
-        res = 1
-        while head:
-            if len(head) > len(tail):
-                head, tail = tail, head
-            q = set()
-            for cur in head:
-                for i in range(l):
-                    for j in tmp:
-                        word = cur[:i] + j + cur[i+1:]
-                        if word in tail:
-                            return res + 1
-                        if word in ws:
-                            q.add(word)
-                            ws.remove(word)
-            head = q
-            res += 1
-        return 0
-```
-https://leetcode.cn/problems/word-ladder/
-
-
-
-# 分治
-```py
-def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
-        n = len(lists)
-
-        def merge(left, right):
-            if left > right:
-                return
-            if left == right:
-                return lists[left]
-            mid = (left + right) // 2
-            l1 = merge(left, mid)
-            l2 = merge(mid + 1, right)
-            return mergeTwoLists(l1, l2)
-
-        def mergeTwoLists(l1, l2):
-            if not l1 or not l2:
-                return l1 or l2
-            if l1.val < l2.val:
-                l1.next = mergeTwoLists(l1.next, l2)
-                return l1
-            else:
-                l2.next = mergeTwoLists(l1, l2.next)
-                return l2
-```
-
-分治+递归合并 https://leetcode.cn/problems/merge-k-sorted-lists/
-
-
-
-# 最长公共前缀
-```py
-def longestCommonPrefix(self, strs):
-        if not strs: return ""
-        s1 = min(strs)
-        s2 = max(strs)
-        for i,x in enumerate(s1):
-            if x != s2[i]:
-                return s2[:i]
-        return s1
-
-def longestCommonPrefix(self, strs):
-        if not strs: return ""
-        ss = list(map(set, zip(*strs))) # zip压缩，set去重
-        res = ""
-        for i, x in enumerate(ss):
-            x = list(x)
-            if len(x) > 1:
-                break
-            res = res + x[0]
-        return res
-```
-
-# 无重复字符的最长子串
-```py
-def lengthOfLongestSubstring(self, s: str) -> int:
-    st = {}
-    i, ans = 0, 0
-    for j in range(len(s)):
-        if s[j] in st:  #字符再次出现
-            i = max(st[s[j]], i) # 看上一次出现的位置是在当前起点的前面还是后面，前面不用动，后面要向前移动
-        ans = max(ans, j - i + 1)
-        st[s[j]] = j + 1 #记录每一个字符最后出现的位置
-    return ans
-```
-
-# 递归
-https://lyl0724.github.io/2020/01/25/1/ 
-
-
-# 基于比较操作的排序算法平均时间复杂度的下界为O(n log n)，最坏情况下为O(n^2)，空间复杂度为O(n)。
-
-# 前中后缀转换 
-中缀转后缀转换过程需要用到栈，具体过程如下：
-
-从左到右扫描字符串
-
-1）如果遇到操作数，我们就直接将其输出（输出我们用队列保存）。
-
-2）如果遇到操作符，当栈为空直接进栈，不为空，判断栈顶元素操作符优先级是否比当前操作符小，小的话直接把当前操作符进栈，不小的话栈顶元素出栈输出，直到栈顶元素操作符优先级比当前操作符小
-
-3）遇到左括号时我们也将其放入栈中。
-
-4）如果遇到一个右括号，则将栈元素弹出，将弹出的操作符输出直到遇到左括号为止。注意，左括号只弹出并不输出。
-
-5）如果我们读到了输入的末尾，则将栈中所有元素依次弹出。
-
-中缀转前缀转换过程同样需要用到栈，具体过程如下：
-
-将中缀表达式转换为前缀表达式：
-
-(1) 初始化两个栈：运算符栈S1和储存中间结果的栈S2；
-
-(2) 从右至左扫描中缀表达式；
-
-(3) 遇到操作数时，将其压入S2；
-
-(4) 遇到运算符时，比较其与S1栈顶运算符的优先级：
-
-    (4-1) 如果S1为空，或栈顶运算符为右括号“)”，则直接将此运算符入栈
-
-    (4-2) 否则，若优先级比栈顶运算符的较高或相等，也将运算符压入S1
-
-    (4-3) 否则，将S1栈顶的运算符弹出并压入到S2中，再次转到(4-1)与S1中新的栈顶运算符相比较；
-
-(5) 遇到括号时：
-
-    (5-1) 如果是右括号“)”，则直接压入S1；
-
-    (5-2)如果是左括号“(”，则依次弹出S1栈顶的运算符，并压入S2，直到遇到右括号为止，此时将这一对括号丢弃；
-
-(6) 重复步骤(2)至(5)，直到表达式的最左边；
-
-(7) 将S1中剩余的运算符依次弹出并压入S2；
-
-(8) 依次弹出S2中的元素并输出，结果即为中缀表达式对应的前缀表达式。
-
-前缀运算 左向右扫描，数字入栈，遇到运算符弹出上面两个数字运算，后再次入栈
-
-后缀运算 右向左扫描，其他一样
-
+让类也能排序做对比建堆 https://leetcode.cn/problems/merge-k-sorted-lists/
 
 # 树
 
@@ -340,6 +169,114 @@ https://lyl0724.github.io/2020/01/25/1/
 中续先左树入栈，pop后右树入栈
 
 **后序遍历，先序遍历是中左右，后续遍历是左右中，那么我们只需要调整一下先序遍历的代码顺序，就变成中右左的遍历顺序，然后在反转result数组，输出的结果顺序就是左右中了**
+    
+```python
+# 前序遍历-迭代-LC144_二叉树的前序遍历
+class Solution:
+    def preorderTraversal(self, root: TreeNode) -> List[int]:
+        # 根结点为空则返回空列表
+        if not root:
+            return []
+        stack = [root]
+        result = []
+        while stack:
+            node = stack.pop()
+            # 中结点先处理
+            result.append(node.val)
+            # 右孩子先入栈
+            if node.right:
+                stack.append(node.right)
+            # 左孩子后入栈
+            if node.left:
+                stack.append(node.left)
+        return result
+        
+# 中序遍历-迭代-LC94_二叉树的中序遍历
+class Solution:
+    def inorderTraversal(self, root: TreeNode) -> List[int]:
+        if not root:
+            return []
+        stack = []  # 不能提前将root结点加入stack中
+        result = []
+        cur = root
+        while cur or stack:
+            # 先迭代访问最底层的左子树结点
+            if cur:     
+                stack.append(cur)
+                cur = cur.left		
+            # 到达最左结点后处理栈顶结点    
+            else:		
+                cur = stack.pop()
+                result.append(cur.val)
+                # 取栈顶元素右结点
+                cur = cur.right	
+        return result
+        
+# 后序遍历-迭代-LC145_二叉树的后序遍历
+class Solution:
+    def postorderTraversal(self, root: TreeNode) -> List[int]:
+        if not root:
+            return []
+        stack = [root]
+        result = []
+        while stack:
+            node = stack.pop()
+            # 中结点先处理
+            result.append(node.val)
+            # 左孩子先入栈
+            if node.left:
+                stack.append(node.left)
+            # 右孩子后入栈
+            if node.right:
+                stack.append(node.right)
+        # 将最终的数组翻转
+        return result[::-1]
+```
+## 层序遍历
+```python
+# 队列 bfs
+class Solution:
+    def levelOrder(self, root: TreeNode) -> List[List[int]]:
+        if root==None:
+            return []
+        q=deque()
+        q.appendleft(root)
+        ans=[]
+        ans.append([root.val])
+        while True:
+            t=[]
+            tq=deque()
+            while len(q)>0:
+                node=q.popleft()
+                if node.left!=None:
+                    t.append(node.left.val)
+                    tq.append(node.left)
+                if node.right!=None:
+                    t.append(node.right.val)
+                    tq.append(node.right)
+            if len(t)>0:
+                ans.append(t)
+            q=tq
+            if len(tq)==0:
+                break
+        return ans
+# 前序遍历 dfs
+class Solution:
+    def levelOrder(self, root: TreeNode) -> List[List[int]]:
+        ans=[[]]
+        if root==None:
+            return []
+        def dfs(root,deep,ans):
+            if root is None:
+                return
+            if deep>len(ans)-1:
+                ans.append([])
+            ans[deep].append(root.val)
+            dfs(root.left,deep+1,ans)
+            dfs(root.right,deep+1,ans)
+        dfs(root,0,ans)
+        return ans
+```
 
 ## 二叉树
 二叉树共父节点 https://leetcode.cn/problems/lowest-common-ancestor-of-a-binary-tree/comments/
@@ -416,10 +353,72 @@ def right_rotation(root):
 在增删的时候进行检查和调整
 
 
+## 124. 二叉树中的最大路径和
+https://leetcode.cn/problems/binary-tree-maximum-path-sum/
+```python
+class Solution:
+    
+    # 对于任意一个节点, 如果最大和路径包含该节点, 那么只可能是两种情况:
+    # 1. 其左右子树中所构成的和路径值较大的那个加上该节点的值后向父节点回溯构成最大路径
+    # 2. 左右子树都在最大路径中, 加上该节点的值构成了最终的最大路径
 
-## 红黑树
+    def maxPathSum(self, root: Optional[TreeNode]) -> int:
+        val=-99999
+        def getMax(root):
+            nonlocal val
+            if root is None:
+                return 0
+            right=max(0,getMax(root.right)) #如果子树路径和为负则应当置0表示最大路径不包含子树
+            left=max(0,getMax(root.left))
+            val=max(val,root.val+left+right) #判断在该节点包含左右子树的路径和是否大于当前最大路径和
+            return max(left,right)+root.val  #回溯往上找最大值
+        getMax(root)
+        return val
+```
 
-前身是4阶B树
+## 572. 另一棵树的子树
+https://leetcode.cn/problems/subtree-of-another-tree/submissions/
+
+遍历同时检查是否相同
+```python
+class Solution:
+    def isSubtree(self, root: TreeNode, subRoot: TreeNode) -> bool:
+        def sametree(root,subroot):
+            if root != None and subroot!=None:
+                return root.val==subroot.val and sametree(root.left,subroot.left) and sametree(root.right,subroot.right)
+            elif root == None and subroot==None:
+                return True
+            else:
+                return False
+        if root==None:
+            return False
+        return sametree(root,subRoot) or self.isSubtree(root.left,subRoot) or self.isSubtree(root.right,subRoot)
+```
+
+## 101. 对称二叉树
+```python
+class Solution:
+    def isSymmetric(self, root: Optional[TreeNode]) -> bool:
+        if not root:
+            return True
+        return self.compare(root.left, root.right)
+            
+    def compare(self, left, right):
+        #首先排除空节点的情况
+        if left == None and right != None: return False
+        elif left != None and right == None: return False
+        elif left == None and right == None: return True
+        #排除了空节点，再排除数值不相同的情况
+        elif left.val != right.val: return False
+        
+        #此时就是：左右节点都不为空，且数值相同的情况
+        #此时才做递归，做下一层的判断
+        outside = self.compare(left.left, right.right) #左子树：左、 右子树：右
+        inside = self.compare(left.right, right.left) #左子树：右、 右子树：左
+        isSame = outside and inside #左子树：中、 右子树：中 （逻辑处理）
+        return isSame
+```
+
 ## 公祖问题
     
 ```py
@@ -458,9 +457,8 @@ Trie 树的本质，就是利用字符串之间的公共前缀，将重复的前
 方法一： 将每个节点中的数组换成其他数据结构，比如有序数组、跳表、散列表、红黑树等。
 
     假设我们用有序数组，数组中的指针按照所指向的子节点中的字符的大小顺序排列。
-    通过二分查找的方法，快速查找到某个字符应该匹配的子节点的指针。（这就不用维
-    护一个上述26的数组，只需要维护两个可能的字符数组）当然，这样为了维护数组顺
-    序，插入元素效率较慢。
+
+    通过二分查找的方法，快速查找到某个字符应该匹配的子节点的指针。（这就不用维护一个上述26的数组，只需要维护两个可能的字符数组）当然，这样为了维护数组顺序，插入元素效率较慢。
 
 方法二：缩点优化
 
@@ -507,6 +505,7 @@ class Solution:
 
 ## 编辑距离
 ```py
+# 变换cost相同
 def minDistance(self, word1: str, word2: str) -> int:
         word1=list(word1)
         word2=list(word2)
@@ -523,10 +522,41 @@ def minDistance(self, word1: str, word2: str) -> int:
                 else:
                     dp[i][j]=min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1])+1#左、上、左上的情况需要多变换一次
         return dp[-1][-1]
+# 变换cost不同，注意由谁变成谁
+class Solution:
+    def minDistance(self , str1: str, str2: str, ic: int, dc: int, rc: int) -> int:
+        dp=[[0]*(len(str1)+1) for _ in range(len(str2)+1)]
+        cost=[ic,dc,rc]
+        for i in range(len(str1)+1):
+            dp[0][i]=i*cost[1]
+        for i in range(len(str2)+1):
+            dp[i][0]=i*cost[0]
+
+        for i in range(1,len(str1)+1):
+            for j in range(1,len(str2)+1):
+                if str1[i-1]==str2[j-1]:
+                    dp[j][i]=dp[j-1][i-1]
+                else:
+                    dp[j][i]=min(dp[j-1][i-1]+cost[2],dp[j][i-1]+cost[1],dp[j-1][i]+cost[0])
+        return dp[-1][-1]
 ```
-
+## 115. 不同的子序列
+```python
+class Solution:
+    def numDistinct(self, s: str, t: str) -> int:
+        dp=[[0]*(len(s)+1) for _ in range(len(t)+1)]
+        for i in range(len(s)+1):
+            dp[0][i]=1
+        for i in range(1,len(t)+1):
+            for j in range(1,len(s)+1):
+                if s[j-1]==t[i-1]:
+                    dp[i][j]=dp[i][j-1]+dp[i-1][j-1] #字母匹配上了，则前一段匹配的数量和上一次的相加
+                else:
+                    dp[i][j]=dp[i][j-1] #横向扩展没匹配上字母，组合数和前一次相同
+        return dp[-1][-1]
+```
 ## 跳表问题
-
+45. 跳跃游戏 II
 ```py
 for i in range(len(nums)-2,-1,-1):
     jump[i]=min([jump[j] for j in range(i+1,min(i+nums[i]+1,len(nums)))])+1
@@ -606,7 +636,11 @@ class Solution:
 
 如果求排列数就是外层for遍历背包，内层for循环遍历物品。
 
-518.零钱兑换问题，没有顺序要求。377.组合总和有顺序要求。
+518.零钱兑换问题，518.组合数，没有顺序要求。
+
+377.组合总和有顺序要求。
+
+有次数要求就二维数组，或一维数组从后到前更新。
 ```py
 for coin in coins: #零钱兑换问题
     for i in range(1,amount+1):
@@ -614,12 +648,32 @@ for coin in coins: #零钱兑换问题
             dp[i]+=dp[i-coin]
 
 for i in range(1,target+1):#组合总和
-            for num in nums:
-                if num <=i:
-                    dp[i]+=dp[i-num]
+    for num in nums:
+        if num <=i:
+            dp[i]+=dp[i-num]
 
-        return dp[-1]
+return dp[-1]
+
+
+class Solution:
+    def numRollsToTarget(self, n: int, k: int, target: int) -> int:
+        dp=[[0]*(target+1) for _ in range(n)]
+        M = 1000000007
+        for i in range(min(k+1,target+1)):
+            dp[0][i]=1
+        # for j in range(target,0,-1):
+        #     dp[j]=0
+        #     for m in range(1,min(j,k+1)):
+        #         dp[j]+=dp[j-m]    一维dp数组。
+        for i in range(1,n):
+            for j in range(1,target+1):
+                for m in range(1,min(j,k+1)): # 不能投和j一样大的数，影响第二维结果
+                    dp[i][j]+=dp[i-1][j-m]
+                    dp[i][j]%=M
+        return dp[-1][-1]%M
 ```
+
+
 ### 多重背包问题
 有N种物品和一个容量为V 的背包。第i种物品最多有Mi件可用，每件耗费的空间是Ci ，价值是Wi 。求解将哪些物品装入背包可使这些物品的耗费的空间 总和不超过背包容量，且价值总和最大。
 
@@ -640,11 +694,65 @@ def trob(root):
    return [root.val+r[1]+l[1],max(r)+max(l)] #不抢也要返回他的max
 return max(trob(root))
 ```
+## 矩阵中的最长递增路径
+dp[i][j]表示以matrix[i][j]结尾的最长递增长度
+
+初始dp[i][j]都等于1，若matrix[i][j]四个方向有任意小于它，则可以更新dp[i][j] = max(dp[i][j], 1 + dp[r][c])
+
+我们在计算dp[i][j]之前，必须先把dp[r][c]计算出来。 matrix(r,c)位置的值比matrix（i，j）位置的值小（从if语句看出来的）。所以我们只要保证，先把matrix中值小的位置的dp先算出来，再把值大的位置的dp算出来，倒数第二行的代码就有意义了。所以我们要先排序。
+```python
+#dp
+class Solution(object):
+    def longestIncreasingPath(self, matrix):
+        if not matrix or not matrix[0]:
+            return 0
+        m, n = len(matrix), len(matrix[0])
+        lst = []
+        for i in range(m):
+            for j in range(n):
+                lst.append((matrix[i][j], i, j))
+        lst.sort()
+        dp = [[0 for _ in range(n)] for _ in range(m)]
+        for num, i, j in lst:
+            dp[i][j] = 1
+            for di, dj in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                r, c = i + di, j + dj
+                if 0 <= r < m and 0 <= c < n:
+                    if matrix[i][j] > matrix[r][c]:
+                        dp[i][j] = max(dp[i][j], 1 + dp[r][c])
+        return max([dp[i][j] for i in range(m) for j in range(n)])
+
+#dfs
+class Solution:
+    def longestIncreasingPath(self, matrix: List[List[int]]) -> int:
+        if not matrix or not matrix[0]: return 0
+
+        row = len(matrix)
+        col = len(matrix[0])
+        lookup = [[0] * col for _ in range(row)]
+
+        def dfs(i, j):
+            if lookup[i][j] != 0:
+                return lookup[i][j]
+            # 方法一
+            res = 1
+            for x, y in [[-1, 0], [1, 0], [0, 1], [0, -1]]:
+                tmp_i = x + i
+                tmp_j = y + j
+                if 0 <= tmp_i < row and 0 <= tmp_j < col and \
+                        matrix[tmp_i][tmp_j] > matrix[i][j]:
+                    res = max(res, 1 + dfs(tmp_i, tmp_j))
+            lookup[i][j] = max(res, lookup[i][j])
+            return lookup[i][j]
+
+        return max(dfs(i, j) for i in range(row) for j in range(col))
+```
+
 
 # 最短路径问题
 
 ## dijkstra 算法
-```py
+```python
 dijkstra(graph,d[], start):
     for each vertex v in graph:
         d[v] = inf
@@ -666,6 +774,286 @@ for each vertex v in graph:
                 d[u][w] = d[u][v] + d[v][w]
 ```
 
+# bfs
+## 127. 单词接龙
+```py
+def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int:
+     search_list=[]
+     search_list.append((beginWord,0))
+
+     while len(search_list):
+         word,deep = search_list.pop(0)
+         if word == endWord:
+             deep+=1
+             break
+         for i in range(len(word)):
+             for j in range(26):
+                 new_word = word[:i] + chr(ord('a') + j) + word[i+1:]
+                 if new_word in wordList:
+                     search_list.append((new_word,deep+1))
+                     wordList.remove(new_word)
+```
+
+双向BFS即是选择短的list去bfs
+```py
+def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int:
+        if endWord not in wordList:
+            return 0
+        l = len(endWord)
+        ws = set(wordList)
+        head = {beginWord}
+        tail = {endWord}
+        tmp = list('abcdefghijklmnopqrstuvwxyz')
+        res = 1
+        while head:
+            if len(head) > len(tail):
+                head, tail = tail, head
+            q = set()
+            for cur in head:
+                for i in range(l):
+                    for j in tmp:
+                        word = cur[:i] + j + cur[i+1:]
+                        if word in tail:
+                            return res + 1
+                        if word in ws:
+                            q.add(word)
+                            ws.remove(word)
+            head = q
+            res += 1
+        return 0
+```
+https://leetcode.cn/problems/word-ladder/
+
+## 丑数 bfs思想
+把只包含因子 2、3 和 5 的数称作丑数（Ugly Number）。
+```python
+# dp 
+class Solution:
+    def nthUglyNumber(self, n: int) -> int:
+        dp=[1]
+        ind=[0 for _ in range(3)]
+        unums=[2,3,5]
+        while True:
+            if len(dp)>=n:
+                break
+            t=[dp[ind[j]]*unums[j] for j in range(3)]
+            m=min(t)
+            if m not in dp:
+                dp.append(m)
+            ind[t.index(m)]+=1  # 当前队列往下走一个位置
+        return dp[-1]
+        
+# 用堆，出来一个进去3个相应的乘积，判断重复的时候不要用in。
+class Solution:
+    def nthSuperUglyNumber(self, n: int, primes: List[int]) -> int:
+        heap=[1]
+        res=[]
+        unums=[2,3,4]
+        while len(res)<n:
+            temp=heapq.heappop(heap)
+            while len(heap)>0 and temp==heap[0]:
+                heapq.heappop(heap)
+            res.append(temp)
+            for u in unums:
+                heapq.heappush(heap,u*temp)
+        return res[-1]
+```
+
+# 回溯/dfs
+## 组合总数（可重复/不可重复，可多次存取/不可多次存取）
+39. 组合总和
+40. 组合总和 II
+```python
+class Solution:
+    def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+        res=[]
+        candidates=sorted(candidates)
+        def dfs(candidates,nums,target,i):
+            if sum(nums)==target:
+                res.append(nums[:])
+                return
+            elif sum(nums)>target:
+                return
+            for j in range(i,len(candidates)):
+                # if j>i and candidates[j]==candidates[j-1]:
+                #     continue      去重，回溯前面用过了
+                nums.append(candidates[j]) 
+                dfs(candidates,nums,target,j) #可以重复使用就可以用j，不能重复就j+1
+                nums.pop(-1)
+        dfs(candidates,[],target,0)
+        return res
+```
+## 排列总数
+46. 全排列
+
+交换的思想，也可以直接递归/回溯暴力存取数字
+```python
+class Solution: #交换
+    def permute(self, nums: List[int]) -> List[List[int]]:
+        res = []
+        def permute(nums,i):
+            if i == len(nums)-1:
+                res.append(nums[:])
+            for j in range(i,len(nums)):
+                nums[i],nums[j]=nums[j],nums[i]
+                permute(nums,i+1)
+                nums[i],nums[j]=nums[j],nums[i]
+        permute(nums,0)
+        return res
+
+class Solution: #暴力递归回溯
+    def permute(self, nums: List[int]) -> List[List[int]]:
+        res = []
+        def backtrack(nums, tmp):
+            if not nums:
+                res.append(tmp)
+                return 
+            for i in range(len(nums)):
+                backtrack(nums[:i] + nums[i+1:], tmp + [nums[i]])
+        backtrack(nums, [])
+        return res
+```
+## 括号生成
+```python
+def dfs(self,res,str,l,r,n):
+        if l>n or r>n or r>l:
+            return
+        if l==n and r==n:
+            res.append(str)
+            return
+        self.dfs(res,str+"(",l+1,r,n)
+        self.dfs(res,str+")",l,r+1,n)
+   def generateParenthesis(self, n: int) -> List[str]:
+        res=[]
+        self.dfs(res,"",0,0,n)
+        return res
+```
+全排列+剪枝
+https://leetcode.cn/problems/generate-parentheses/
+## 电话号码
+```py
+def letterCombinations(self, digits: str) -> List[str]:
+        dic={2:"abc",3:"def",4:"ghi",5:"jkl",6:"mno",7:"pqrs",8:"tuv",9:"wxyz"}
+        if len(digits)==0:
+            return []
+        if len(digits)==1:
+            return list(dic[int(digits)])
+        else:
+            return [i+j for i in self.letterCombinations(digits[0]) for j in self.letterCombinations(digits[1:])]
+
+```
+https://leetcode.cn/problems/letter-combinations-of-a-phone-number/
+
+# 智力题
+## N个小球里找次品，天平最少秤几次
+情况1：次品的轻重已知
+
+已知次品轻重的情况下，N 个小球一共有 N 种次品可能性，即 N 个小球都可能是次品（比其他小球重）。天平每秤一次，会有三种情况：即左重、右重、或平衡。若每次秤的时候，都能将小球平均分为 3 份，则秤一次天平会将可能性变为之前的 1/3 。
+
+情况2：次品的轻重未知
+
+若次品的轻重未知，则 N 个小球中次品的情况有 2N 中，即每一个小球都有可能成为次品，且该次品较轻或者较重。经过 1 次称重后，可能性也会降低到之前的1/3。最多需要每次多称重一次。
+
+## 平均要抛多少次硬币，才能出现连续K次正面向上？
+令正面朝上的概率为p，则有：
+$$
+E(N_k)=E(N_{k-1})+p+(1-p)(E(N_{k})+1)\\
+E(N_k)=\frac{1}{p}+\frac{E_{k-1}}{p}\\ \\
+
+E(N_k)=\frac{1}{p}+\frac{1}{p^2}+\dots+\frac{1}{p^{k-1}}+\frac{1}{p^{k}}\\
+$$
+## n双鞋，能随机匹配每一双的概率
+P(n,n)*2^n/P(2n,2n)
+# 分治
+## 寻找两个正序数组的中位数
+4. 寻找两个正序数组的中位数
+
+这个题目可以归结到寻找第k小(大)元素问题，思路可以总结如下：取两个数组中的第k/2个元素进行比较，如果数组1的元素小于数组2的元素，则说明数组1中的前k/2个元素不可能成为第k个元素的候选，所以将数组1中的前k/2个元素去掉，组成新数组和数组2求第k-k/2小的元素，因为我们把前k/2个元素去掉了，所以相应的k值也应该减小。另外就是注意处理一些边界条件问题，比如某一个数组可能为空或者k为1的情况。
+
+我们分别找第 (m+n+1) / 2 个，和 (m+n+2) / 2 个，然后求其平均值即可，这对奇偶数均适用。
+```python
+def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
+        def findKthElement(arr1,arr2,k):
+            len1,len2 = len(arr1),len(arr2)
+            if len1 > len2:
+                return findKthElement(arr2,arr1,k)
+            if not arr1:
+                return arr2[k-1]
+            if k == 1:
+                return min(arr1[0],arr2[0])
+            i,j = min(k//2,len1)-1,min(k//2,len2)-1
+            if arr1[i] > arr2[j]:
+                return findKthElement(arr1,arr2[j+1:],k-j-1)
+            else:
+                return findKthElement(arr1[i+1:],arr2,k-i-1)
+        l1,l2 = len(nums1),len(nums2)
+        left,right = (l1+l2+1)//2,(l1+l2+2)//2
+        return (findKthElement(nums1,nums2,left)+findKthElement(nums1,nums2,right))/2
+```
+https://leetcode.cn/problems/median-of-two-sorted-arrays/
+
+## 合并k个排序的链表
+23. 合并K个升序链表
+
+分治+递归合并，递归合并两个链表，分治分别合并。
+```py
+def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
+        n = len(lists)
+
+        def merge(left, right):
+            if left > right:
+                return
+            if left == right:
+                return lists[left]
+            mid = (left + right) // 2
+            l1 = merge(left, mid)
+            l2 = merge(mid + 1, right)
+            return mergeTwoLists(l1, l2)
+
+        def mergeTwoLists(l1, l2):
+            if not l1 or not l2:
+                return l1 or l2
+            if l1.val < l2.val:
+                l1.next = mergeTwoLists(l1.next, l2)
+                return l1
+            else:
+                l2.next = mergeTwoLists(l1, l2.next)
+                return l2
+```
+
+https://leetcode.cn/problems/merge-k-sorted-lists/
+
+
+# 链表
+## 链表排序
+```python
+# 快排思想，把小于基准值的放在左边，大于基准值的放在右边，基准值放在中间
+def sortList(head):
+    pre=ListNode()
+    pre.next=head
+    def sort(head,end):
+        if head==None or  head.next==end or head.next.next==end:
+            return head
+        temp=ListNode()
+        temp1=temp
+        p=head
+        temp1.next=p.next
+        p.next=p.next.next
+        temp1=temp1.next
+        temp1.next=None
+        while p.next!=end:
+            if p.next.val<temp1.val:
+                t,temp.next,p.next=temp.next,p.next,p.next.next
+                temp.next.next=t
+            else:
+                p=p.next
+        temp1.next,head.next=head.next,temp.next
+        sort(head,temp1)
+        sort(temp1,end)
+        return head.next
+    sort(pre,None)
+    return pre.next
+```
 # 是否有重复子串
 return s in (s+s)[1:-1]
 
@@ -883,4 +1271,274 @@ class Solution:
             h2 = max(h2,height[-i-1])
             ans = ans + h1 + h2 -height[i]
         return  ans - len(height)*h1
+```
+
+# 最长回文子序列
+```cpp
+#双指针法
+class Solution {
+public:
+    int left = 0;
+    int right = 0;
+    int maxLength = 0;
+    string longestPalindrome(string s) {
+        int result = 0;
+        for (int i = 0; i < s.size(); i++) {
+            extend(s, i, i, s.size()); // 以i为中心
+            extend(s, i, i + 1, s.size()); // 以i和i+1为中心
+        }
+        return s.substr(left, maxLength);
+    }
+    void extend(const string& s, int i, int j, int n) {
+        while (i >= 0 && j < n && s[i] == s[j]) {
+            if (j - i + 1 > maxLength) {
+                left = i;
+                right = j;
+                maxLength = j - i + 1;
+            }
+            i--;
+            j++;
+        }
+    }
+};
+#动态规划
+class Solution {
+public:
+    string longestPalindrome(string s) {
+        vector<vector<int>> dp(s.size(), vector<int>(s.size(), 0));
+        int maxlenth = 0;
+        int left = 0;
+        int right = 0;
+        for (int i = s.size() - 1; i >= 0; i--) {
+            for (int j = i; j < s.size(); j++) {
+                if (s[i] == s[j]) {
+                    if (j - i <= 1) { // 情况一 和 情况二
+                        dp[i][j] = true;
+                    } else if (dp[i + 1][j - 1]) { // 情况三
+                        dp[i][j] = true;
+                    }
+                }
+                if (dp[i][j] && j - i + 1 > maxlenth) {
+                    maxlenth = j - i + 1;
+                    left = i;
+                    right = j;
+                }
+            }
+
+        }
+        return s.substr(left, right - left + 1);
+    }
+};
+```
+
+
+# 单调队列
+滑动窗口最大值
+
+维护窗口，向右移动时左侧超出窗口的值弹出，因为需要的是窗口内的最大值，所以只要保证窗口内的值是递减的即可，小于新加入的值全部弹出。最左端即为窗口最大值。
+```python
+class Solution(object):
+    def maxSlidingWindow(self, nums, k):
+        win, ret = [], []
+        for i, v in enumerate(nums):
+            if i >= k and win[0] <= i - k: win.pop(0)
+            while win and nums[win[-1]] <= v: win.pop()
+            win.append(i)
+            if i >= k - 1: ret.append(nums[win[0]])
+        return ret
+```
+
+
+
+
+
+
+
+
+
+# 最长公共前缀
+```py
+def longestCommonPrefix(self, strs):
+        if not strs: return ""
+        s1 = min(strs)
+        s2 = max(strs)
+        for i,x in enumerate(s1):
+            if x != s2[i]:
+                return s2[:i]
+        return s1
+
+def longestCommonPrefix(self, strs):
+        if not strs: return ""
+        ss = list(map(set, zip(*strs))) # zip压缩，set去重
+        res = ""
+        for i, x in enumerate(ss):
+            x = list(x)
+            if len(x) > 1:
+                break
+            res = res + x[0]
+        return res
+```
+
+# 无重复字符的最长子串
+```py
+def lengthOfLongestSubstring(self, s: str) -> int:
+    st = {}
+    i, ans = 0, 0
+    for j in range(len(s)):
+        if s[j] in st:  #字符再次出现
+            i = max(st[s[j]], i) # 看上一次出现的位置是在当前起点的前面还是后面，前面不用动，后面要向前移动
+        ans = max(ans, j - i + 1)
+        st[s[j]] = j + 1 #记录每一个字符最后出现的位置
+    return ans
+```
+
+# 递归
+https://lyl0724.github.io/2020/01/25/1/ 
+
+
+# 基于比较操作的排序算法平均时间复杂度的下界为O(n log n)，最坏情况下为O(n^2)，空间复杂度为O(n)。
+
+# 前中后缀转换 
+中缀转后缀转换过程需要用到栈，具体过程如下：
+
+从左到右扫描字符串
+
+1）如果遇到操作数，我们就直接将其输出（输出我们用队列保存）。
+
+2）如果遇到操作符，当栈为空直接进栈，不为空，判断栈顶元素操作符优先级是否比当前操作符小，小的话直接把当前操作符进栈，不小的话栈顶元素出栈输出，直到栈顶元素操作符优先级比当前操作符小
+
+3）遇到左括号时我们也将其放入栈中。
+
+4）如果遇到一个右括号，则将栈元素弹出，将弹出的操作符输出直到遇到左括号为止。注意，左括号只弹出并不输出。
+
+5）如果我们读到了输入的末尾，则将栈中所有元素依次弹出。
+
+中缀转前缀转换过程同样需要用到栈，具体过程如下：
+
+将中缀表达式转换为前缀表达式：
+
+(1) 初始化两个栈：运算符栈S1和储存中间结果的栈S2；
+
+(2) 从右至左扫描中缀表达式；
+
+(3) 遇到操作数时，将其压入S2；
+
+(4) 遇到运算符时，比较其与S1栈顶运算符的优先级：
+
+    (4-1) 如果S1为空，或栈顶运算符为右括号“)”，则直接将此运算符入栈
+
+    (4-2) 否则，若优先级比栈顶运算符的较高或相等，也将运算符压入S1
+
+    (4-3) 否则，将S1栈顶的运算符弹出并压入到S2中，再次转到(4-1)与S1中新的栈顶运算符相比较；
+
+(5) 遇到括号时：
+
+    (5-1) 如果是右括号“)”，则直接压入S1；
+
+    (5-2)如果是左括号“(”，则依次弹出S1栈顶的运算符，并压入S2，直到遇到右括号为止，此时将这一对括号丢弃；
+
+(6) 重复步骤(2)至(5)，直到表达式的最左边；
+
+(7) 将S1中剩余的运算符依次弹出并压入S2；
+
+(8) 依次弹出S2中的元素并输出，结果即为中缀表达式对应的前缀表达式。
+
+前缀运算 左向右扫描，数字入栈，遇到运算符弹出上面两个数字运算，后再次入栈
+
+后缀运算 右向左扫描，其他一样
+
+# 下一个排列
+最后一个数字往前找一个比他小的，交换后，后面的再排序
+```python
+class Solution:
+    def nextPermutation(self, nums: List[int]) -> None:
+        """
+        Do not return anything, modify nums in-place instead.
+        """
+        for i in range(len(nums)-1,-1,-1):
+            for j in range(len(nums)-1,i,-1):
+                if nums[i]<nums[j]:
+                    nums[i],nums[j]=nums[j],nums[i]
+                    nums[i+1:]=sorted(nums[i+1:])
+                    return
+            
+        nums.reverse()
+```
+
+
+# KMP
+
+```python
+# next数组
+def cal_next(ptr):
+	next = [-1]
+    # ptr第一位的没有最长前后缀，直接赋值为-1
+	k = -1
+    # k代表最长前后缀长度，赋值为-1
+	for p in range(1, len(ptr)):
+        # 从第二位开始遍历ptr
+		while k>-1 and ptr[p]!=ptr[k+1]:
+            # 假设已有最长前缀为A，最长后缀为B，B的下一位ptr[p] != A的下一位ptr[k+1]
+            # 说明最长前后缀不能持续下去
+			k = next[k]
+            # 往前回溯，尝试部分前缀，而非从第一位开始重新寻找最长前缀
+		if ptr[p] == ptr[k+1]:
+            # 如果A B的下一位相同
+			k = k + 1
+            # 最长前后缀长度 + 1
+		next.append(k)
+            # 第p位的最长前后缀赋值为k
+	print('next: ', next)
+	return next
+# 匹配
+def kmp(str, ptr):
+	next = cal_next(ptr)    # 求解next
+	k = -1    # 此处k相当于ptr中已匹配的长度，类似一个指针指向ptr中已匹配的最后一位
+	num = 0    # str中ptr的数量
+	for p in range(len(str)):
+        # 遍历str
+		while k>-1 and str[p] != ptr[k+1]:
+            # 假设str中的A片段和ptr中的前A位已匹配，但A的下一位和ptr中A+1位不匹配
+			k = next[k]
+            # 放弃A片段中的前若干位，因为它们不可能再匹配了
+            # 用A片段的后若干位去匹配ptr中某一个最大前缀，像上面矩形图所示
+		if str[p] == ptr[k+1]:
+            # 如果A的下一位和ptr中A+1位相匹配
+			k = k+1
+		if k == len(ptr)-1:    # 如果ptr走到尽头
+			num = num + 1    # 匹配到了一个
+			k = next[k]
+	return num
+```
+
+# 开方
+```python
+# 二分法
+def mySqrt(x: int) -> int:
+    left,right=0,x
+    while left<=right:
+        mid=(left+right)/2
+        if mid*mid>x:
+            right=mid-0.00001 #控制精度，+=1精度就是整数
+        elif mid*mid<x:
+            left=mid+0.00001
+        else:
+            return mid
+    print(right)
+    return right
+
+# 牛顿法，求迭代式
+class Solution:
+    def mySqrt(self, x: int) -> int:
+        if x == 0:
+            return 0
+        
+        C, x0 = float(x), float(x)
+        while True:
+            xi = 0.5 * (x0 + C / x0)
+            if abs(x0 - xi) < 1e-7:
+                break
+            x0 = xi
+        
+        return int(x0)
 ```

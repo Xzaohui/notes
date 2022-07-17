@@ -355,10 +355,28 @@ $$
 \prod_{t=1}^{T} P\left(w^{(t)} \mid w^{(t-m)}, \ldots, w^{(t-1)}, w^{(t+1)}, \ldots, w^{(t+m)}\right) .
 $$
 
+### skip-gram对比CBOW
+CBOW是用window大小的滑动窗口内的词来表征中心词，skip-gram是用中心词来表征window大小的滑动窗口内的所有词；
+
+训练效率而言，CBOW远胜skip-gram，随着语料或window_size的增加越发明显，因为CBOW对每个中心词只需做一次表征(embedding)学习，但skip-gram需要(window_size - 1)次；
+
+性能上，对于常见词/高频词，CBOW占优；对于低频词，skip-gram更敏感。
+
+非常浅显地解释：
+
+对于这样一个句子：this is a [?] day，对于CBOW，这个[?]空白习得的embedding中，会有类似“形容词、形容心情或天气、情感正负向”这样的信息，最能让这句话“看起来合理”的词，可能是nice、bad、terrible...，模型训练中，会多次根据上下文，对高频词nice、bad、terrible进行含义上的修正；
+
+但对于skip-gram，假设这个[?]实际上应该是“delightful”，这个词较生僻，词频低，如果以CBOW的方式训练，那么delightful的含义会同window内各个词一起进行学习，会被窗口内高频词给平均模糊掉；但skip-gram会对每个词进行学习，收到的影响也就更小。
+
+总结来说就是CBOW模型中input是context（周围词）而output是中心词，训练过程中其实是在从output的loss学习周围词的信息也就是embedding，但是在中间层是average的，一共预测V(vocab size)次就够了。skipgram是用中心词预测周围词，预测的时候是一对word pair，等于对每一个中心词都有K个词作为output，对于一个词的预测有K次，所以能够更有效的从context中学习信息，但是总共预测K*V词。
+
+因此，skip gram的训练时间更长，但是对于一些出现频率不高的词，在CBOW中的学习效果就不日skipgram。
 ### 下采样
 文本数据通常有“the”、“a”和“in”等高频词：它们在非常大的语料库中甚至可能出现数十亿次。然而，这些词经常在上下文窗口中与许多不同的词共同出现，提供的有用信息很少。此外，大量（高频）单词的训练速度很慢。因此，当训练词嵌入模型时，可以对高频单词进行下采样。具体地说，数据集中的每个词将有概率地被丢弃。
 
 ### 负采样(Negative Sampling)
+如果我们的训练样本里的中心词𝑤是一个很生僻的词，那么就得在霍夫曼树中辛苦的向下走很久了。
+
 只考虑那些正样本的事件。仅当所有词向量都等于无穷大时，联合概率才最大化为1。当然，这样的结果毫无意义。为了使目标函数更有意义，负采样添加从预定义分布中采样的负样本。
 
 以word2vec中的负采样优化策略为例，即把语料中的一个词串的中心词替换为别的词，构造语料集中不存在的词串作为负样本。在这种策略下，优化目标变为了：较大化正样本的概率，同时最小化负样本的概率;
@@ -1062,7 +1080,7 @@ Leaning to Rank 则可以根据用户的反馈对多路召回的 item 进行排�
 3. 一般头查询（head query）才存在用户点击
 
 
-### CTR预估模型
+### CTR点击率预估
 CTR预估模型可以广泛应用于个性化推荐、信息检索、在线广告等领域，用来学习和预测用户的反馈，用户的反馈主要有点击、收藏、购买等。
 
 #### 数据
@@ -1093,7 +1111,6 @@ wide模型可以通过利用交叉特征引入非线性高效的实现记忆能�
 Deep部分就是个前馈网络模型，特征首先转换为低维稠密向量，再将其作为第一个隐藏层的输入，根据最终的loss来反向训练更新。向量进行随机初始化，隐藏层的激活函数通常使用ReLU。
 
 ### DeepFM
-
 在处理CTR预估问题中，传统的方法有一个共同的缺点：对于低阶的组合特征，学习到的比较少；但是低阶特征对于CTR也非常重要，于是Google为了同时学习低阶和高阶组合特征，提出了 Wide&Deep 模型：混合了一个 线性模型（Wide part）和 Deep 模型 (Deep part)；这两部分模型需要不同的输入，其中Wide part部分的输入仍然依赖人工特征工程；
 
 此时模型存在两个问题：
@@ -1101,7 +1118,9 @@ Deep部分就是个前馈网络模型，特征首先转换为低维稠密向量�
 1. 偏向于提取低阶或者高阶的组合特征，不能同时提取这两种类型的特征；
 2. 需要专业的领域知识来做特征工程；
 
-DeepFM 在 Wide&Deep 的基础上进行改进，成功解决了上述这两个问题，并做了一些优化；
+DeepFM是FM + DNN， 在 Wide&Deep 的基础上进行改进，成功解决了上述这两个问题，并做了一些优化；
+
+FM模型对每个特征，都令其对应一个K维的隐向量，且wij=vi*vj
 
 优点如下：
 
@@ -1598,7 +1617,7 @@ $L(Y, P(Y \mid X))=-\log P(Y \mid X)$
 
 (1) log对数损失函数能非常好的表征概率分布，在很多场景尤其是多分类，如果需要知道结果属于每个类别的置信度，那它非常适合。
 
-(2)健壮性不强，相比于hinge loss对噪声更敏感。
+(2)健壮性不强，相比于hinge loss**对噪声更敏感**，log 或者 exp 都是放大了错误。
 
 (3)逻辑回归的损失函数就是log对数损失函数。
 
@@ -1612,7 +1631,7 @@ $L(Y \mid f(X))=\sum_{N}(Y-f(X))^{2}$
 
 $L(Y \mid f(X))=\exp [-y f(x)]$
 
-对离群点、噪声非常敏感。经常用在AdaBoost算法中。
+**对离群点、噪声非常敏感**。经常用在AdaBoost算法中。
 
 ## Hinge 合叶损失函数
 
@@ -1641,7 +1660,7 @@ J(w)&=\frac{1}{2}|| w||^{2}+C \sum_{i} \max \left(0,1-y_{i}\left(w^{T} x_{i}+b\r
 
 SVM软间隔的损失函数可以看做是L2正则化与Hinge loss之和。
 
-## 交叉熵损失函数
+## 交叉熵损失函数 CE(Cross Entropy) Loss
 
 用于分类问题，最后一层为softmax
 
@@ -1651,9 +1670,9 @@ $H(p, q)=-\sum_{x}(p(x) \log q(x)+(1-p(x)) \log (1-q(x)))$
 
 而我们在pytorch中使用的交叉熵损失函数形式如下:
 
-$H(p, q)=-\sum_{x}(p(x) \log q(x)$
+$loss=-\sum_{x}(p(x) \log q(x)$
 
-Pytorch中CrossEntropyLoss()函数的主要是将softmax-log-NLLLoss合并到一块得到的结果。
+Pytorch中CrossEntropyLoss()函数的主要是将softmax-log-NLLLoss合并到一块得到的结果。（实际上NLLLoss不会给做取对数的操作，需要提前做logsoftmax）
 
 RNN输出的概率矩阵->soft-max归一化为概率q(x)->标签化为one-hot编码->负对数似然损失函数->交叉熵损失函数
 
@@ -1662,6 +1681,14 @@ RNN输出的概率矩阵->soft-max归一化为概率q(x)->标签化为one-hot编
 yi是实际标签的one-hot编码后的每一项，softmax(RNN.out)是RNN输出的概率矩阵。
 
 ![Alt](https://pic4.zhimg.com/80/v2-ac627eab5f07ead5144cfaaff7f2163b_1440w.jpg)
+
+**对噪声敏感**，log 或者 exp 都是放大了错误
+## BCELoss
+BCE：Binary Cross Entropy
+
+$loss=-\sum_{x}(p(x) \log q(x)+(1-p(x)) \log (1-q(x)))$
+
+实际上是完整的交叉熵，p(x)是0，1标签，q(x)是经过softmax后的RNN输出的概率矩阵。
 
 ## 其他概念
 -损失函数：用于衡量'单个样本点'预测值与实际值的偏离程度。
@@ -1816,6 +1843,12 @@ $$
 
 其中，$\phi$ 是 一 个 可 选 择 的 映 射 函 数 ， 一 种 是 是一个可选择的映射函数，一种是是一个可选择的映射函数，一种是$\phi(z)=z$， 另 一 种 则 为 起 到 归 一 化 作 用 的 ，另一种则为起到归一化作用的，另一种则为起到归一化作用的$min(max(z,\gamma_l),\gamma_u)$。$\gamma_l,\gamma_u$为预先设定的超参数，分别代表参数调整的下界和上界。这一简单的调整所带来的实际效果非常显著。使用 AdamW 时，batch size 超过 512 便会导致模型效果大幅下降，但在 LAMB 下，batch size 可以直接提到 32,000 而不会导致精度损失。
 
+## 元学习调学习率 (meta learning)
+指数梯度下降 + 元学习 = 自适应学习率
+该方法的学习率调节思路是：如果某分量相邻两步的梯度经常同号，那么对应项的累加结果就是正的，意味着我们可以适当扩大一下学习率；如果相邻两步的梯度经常异号，那么对应项的累加结果很可能是负的，意味着我们可以适当缩小一下学习率。
+
+注意这跟Adam调学习率的思想是不一样的，Adam调节学习率的思想是如果某个分量的梯度长时间很小，那么就意味着该参数可能没学好，所以尝试放大它的学习率。两者也算是各有各的道理吧。
+
 
 
 # 激活函数
@@ -1959,3 +1992,179 @@ $$
 
     似乎是 NLP 领域的当前最佳；尤其在 Transformer 模型中表现最好；
     能避免梯度消失问题。
+
+
+# GLU（Gated Linear Unit，门控线性单元）
+
+$$
+h_{l}(\mathbf{X})=(\mathbf{X} * \mathbf{W}+\mathbf{b}) \otimes \sigma(\mathbf{X} * \mathbf{V}+\mathbf{c})
+$$
+
+X代表输入。
+W、V、b、c都是要学习的参数。
+σ在原论文中是sigmoid函数。
+⊗是对应元素相乘（element-wise product），也称为哈达玛积(Hadamard product)。
+
+从公式可以看到，输入X分两路，其中一路的运算结果不做处理，另一路则经过激活函数。
+
+# GAU （Gated Attention Unit，门控注意力单元）
+标准的Transformer其实是Attention层和FFN层交替构建的，而这篇论文的核心是提出了一个融合了GLU和Attention两者的新设计GAU（Gated Attention Unit，门控注意力单元），它是新模型更快、更省、更好的关键，此外它使得整个模型只有一种层，也显得更为优雅。
+![](https://kexue.fm/usr/uploads/2022/02/1677181970.png)
+
+GAU在设计上给我们带来的冲击主要有两点：
+1. 它显示了单头注意力未必就逊色于多头注意力，这奠定了它“快”、“省”的地位；
+2. 它是显示了注意力未必需要Softmax归一化，可以换成简单的relu^2除以序列长度：
+
+GAU是非常容易训练的模型，哪怕我们不加调整地直接使用“Post Norm + Xavier初始化”，也能轻松训练个几十层的GAU，并且还不用Warmup。因为在默认设置之下，理论上GAU(xl)相比xl几乎小了两个数量级，因此，GAU配合残差，在标准的初始化之下就已经很接近一个恒等函数，有这种性质的模型是非常容易训练的，通常都不需要Warmup。
+
+# PGN  Pointer-Generator Networks 指针生成网络
+seq2seq 模型架构做生成式模型明显的缺点有以下几点：
+
+1. 由于 Attention 可能聚焦于某些单词，容易生成重复的的词语或短句
+2. 容易产生事实性的错误，比如姓名之间的错误
+3. 只能生成词表中的单词，无法处理 OOV（out of vocabulary）问题
+
+PGN 可以将原文中的一些重要、低频单词直接 copy 到生成的文本摘要中，极大地避免 OOV 问题。
+
+![](https://pic2.zhimg.com/80/v2-cf6932d2cdd5c3fab2d3f6eff0143e61_1440w.jpg)
+
+以上是 PGN 的模型架构图，可以看出在 seq2seq + attention 的基础上，多了一层$p_{g e n}$的计算。
+
+1. 先根据当前时间步的 decoder input 和 encoder 计算出的 context vector，计算出当前时间步的 $p_{g e n}$ ；
+2. 然后用 1-$p_{g e n}$乘以 Attention Distribution，得到原始文本的相关信息；
+3. 其次用 $p_{g e n}$ 乘以 Vocabulary Distribution，得到生成文本的相关信息；
+4. 最后将这两部分信息相加，得到 Final Distribution。
+
+## 计算公式
+结合了PGN 的seq2seq 网络架构的计算流程可以分为以下的步骤。
+1. 计算 Attention Distribution（attention weight）
+$$
+e_{i}^{t}=v^{T} \tanh \left(W_{h} h_{i}+W_{s} s_{t}+b_{a t t n}\right)
+$$
+$$
+a^{t}=\operatorname{softmax}\left(e^{t}\right)
+$$
+其中, $h_{i}$ 是由 encoder 计算得到的 encoder hidden state； $s_{t}$ 是由 decoder 计算得到的当前 时间步的hidden state。
+
+2. 计算 Context Vector
+$$
+h_{t}^{*}=\Sigma_{i} a_{i}^{t} h_{i}
+$$
+将 Attention Distribution 应用在 encoder hidden state 上，得到当前时间不的上下文向量。
+
+3. 计算 $P_{v o c a b}$
+$$
+P_{v o c a b}=\operatorname{softmax}\left(V^{\prime}\left(V\left[s_{t}, h_{t}^{*}\right]+b\right)+b^{\prime}\right)
+$$
+通过一个全连接层 + softmax, 计算当前时间步的输出在词表上的生成概率。
+
+4. 计算 $p_{g e n}$
+$$
+p_{g e n}=\sigma\left(w_{h^{*}}^{T} h_{t}^{*}+w_{s}^{T} s_{t}+w_{x}^{T} x_{t}+b_{p t r}\right)
+$$
+5. 计算最终单词的概率分布
+$$
+P(w)=p_{g e n} P_{v o c a b}(w)+\left(1-p_{g e n}\right) \Sigma_{i: w_{i}=w} a_{i}^{T}
+$$
+可以看出， $p_{g e n}$类似于门控神经网络中的 gate，用于控制有多少的信息来自于原文，有多少的信息来自于根据神经网络生成的文本。如果一个单词没有在原文中出现过，那么上述公式(6)右侧的值等于0，也就是说这个单词生成的概率完全依赖于 seq2seq 网络；如果一个单词属于OOV，不在词表中，那么上述公式左侧的值等于0，也就是说这个单词生成的概率完全依赖于原文中的概率分布加和，相当于直接从原文中 copy 到生成的摘要文本中。
+## Coverage 机制
+除 PGN 外，原始论文还引入了 coverage 机制，可以缓解生成过程中的短语重复问题。
+
+1. 定义一个 $c_{t}$ 向量, 是所有先前解码器时间步的注意力分布之和, 此时的 $c_{t}$ 向量代表了先前步 已经覆盖到的原文单词。
+$$
+c^{t}=\Sigma_{t^{\prime}=0}^{t-1} a^{t^{\prime}}
+$$
+2. 在式 (1) 中加入 $c_t$, 重新计算 attention score, 将先前步已经覆盖到的原文单词考虑进去, 从而减少重复生成。
+$$
+e_{i}^{t}=v^{T} \tanh \left(W_{h} h_{i}+W_{s} s_{t}+w_{c} c_{i}^{t}+b_{a t t n}\right)
+$$
+3. 增加 coverage loss, 对过往时刻或当前时刻受到注意力较多的单词进行惩罚。
+$$
+\operatorname{covloss_{t}}=\Sigma_{\mathrm{i}} \min \left(\mathrm{a}_{\mathrm{i}}^{\mathrm{t}}, \mathrm{c}_{\mathrm{i}}^{\mathrm{t}}\right)
+$$
+4. 将 coverage loss 考虑进去, 得到整个模型的损失函数：
+$$
+\operatorname{loss}_{t}=-\log P\left(w_{t}^{*}\right)+\lambda \Sigma_{i} \min \left(a_{i}^{t}, c_{i}^{t}\right)
+$$
+
+引入PGN + coverage 机制，可以在一定程度上改善 seq2seq 模型架构中的 OOV 问题及短语重复问题。
+
+
+# 自编码器 (AutoEncoder)
+## 隐变量模型(Latent Variable Models)
+隐变量： 不可直接观测的综合性变量。
+
+隐变量模型： 隐变量模型是一种概率模型，其中某些变量是不可观测的。（即包隐变量的概率模型）
+
+如果模型在给任何像素赋值之前，先决定生成哪个字符（或者说具有某种特征的字符），这对生成字符这个工作将会很有帮助。这种决定在形式上被称为 隐变量(Latent Variable)。
+
+## 自编码器种类
+自编码器是一类在半监督学习和非监督学习中使用的人工神经网络，其功能是通过将输入信息作为学习目标，对输入信息进行表征学习。
+
+AutoEncoder 包括 编码器(Encoder) 和 解码器(Decoder) 两部分。Encoder 过程是将原先的数据（常用于图像方向）压缩为低维向量；Decoder 则是把低维向量还原为原来数据。
+
+按学习范式分类
+
+收缩自编码器（undercomplete autoencoder）
+
+正则自编码器（regularized autoencoder）
+
+变分自编码器（Variational AutoEncoder, VAE）
+
+其中前两者是判别模型、后者是生成模型。
+
+按构筑类型分类
+
+前馈结构的神经网络
+
+递归结构的神经网络
+
+按损失函数的约束条件分类
+
+稀疏自编码器
+
+去噪自编码器
+
+卷积自编码器
+
+### 自编码器具有以下几个特点：
+
+非监督学习 (Unsupervised Learning)
+
+是一种前馈神经网络，没有任何反馈
+
+是一种生成模型
+
+具有较好的特征提取能力
+
+它的降维可以是非线性的，而 PCA 是线性的
+
+常用于 特征提取、文档检索、分类和异常检测
+
+## VAE （ Variational Autoencoder）
+VAE 模型是一种包含隐变量的生成模型，它利用神经网络训练得到两个函数（也称为推断网络和生成网络），进而生成输入数据中不包含的数据。
+
+![](https://img-blog.csdnimg.cn/20190226215744959.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2EzMTI4NjMwNjM=,size_16,color_FFFFFF,t_70)
+
+在auto-encoder中，编码器是直接产生一个编码的，但是在VAE中，为了给编码添加合适的噪音，编码器会输出两个编码，一个是原有编码(m1,m2,m3)，另外一个是控制噪音干扰程度的编码(σ1,σ2,σ3)，第二个编码其实很好理解，就是为随机噪音码(e1,e2,e3)分配权重，然后加上exp(σi)的目的是为了保证这个分配的权重是个正值，最后将原编码与噪音编码相加，就得到了VAE在code层的输出结果(c1,c2,c3)。其它网络架构都与Deep Auto-encoder无异。
+
+  损失函数方面，除了必要的重构损失外，VAE还增添了一个损失函数（见上图Minimize2内容），这同样是必要的部分，因为如果不加的话，整个模型就会出现问题：为了保证生成图片的质量越高，编码器肯定希望噪音对自身生成图片的干扰越小，于是分配给噪音的权重越小，这样只需要将(σ1,σ2,σ3)赋为接近负无穷大的值就好了。所以，第二个损失函数就有限制编码器走这样极端路径的作用，这也从直观上就能看出来，exp(σi)-(1+σi)在σi=0处取得最小值，于是(σ1,σ2,σ3)就会避免被赋值为负无穷大。
+
+### VAE 与 AE
+区别
+
+VAE 中隐藏层服从高斯分布，AE 中的隐藏层无分布要求
+
+训练时，AE 训练得到 Encoder 和 Decoder 模型，而 VAE 除了得到这两个模型，还获得了隐藏层的分布模型（即高斯分布的均值与方差）AE 只能重构输入数据X，而 VAE 可以生成含有输入数据某些特征与参数的新数据。
+
+联系
+
+VAE 与 AE 完全不同，但是从结构上看都含有 Decoder 和 Encoder 过程。
+
+### 为什么叫变分自编码器
+用简单的分布q去近似复杂的分布p，VAE 中的隐变量 z zz 的生成过程就是一个变分过程，我们希望用简单的 z zz 来映射复杂的分布，这既是一个降维的过程，同时也是一个变分推断的过程。
+
+## 总结
+VAE 模型比较擅长于生成复杂数据，并且已经被实现并且被应用。我们认为 VAE 模型能够通过隐变量来捕获输入数据中一些隐藏的特征，并且我们利用这些特征生成与输入数据相关但是又不相同的数据，AE 模型只是编码解码，完全不能实现这个功能。
+
+当然，一些论文介绍也用 VAE 模型做一些其他事情，比如异常检测。

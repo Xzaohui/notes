@@ -101,7 +101,19 @@ range(begin,end,step)
 
 arange(begin,end,step)step为正数时，从begin到end-1，step为负数时，从end到begin-1。三个参数支持小数，终点为小数，默认起点为0.0，步长为1.0。
 
-## LayerNorm/BatchNorm 稳定梯度，加速收敛
+
+## nn.apply
+apply(fn)的官网介绍，该方法会将fn递归的应用于模块的每一个子模块（.children()的结果）及其自身。典型的用法是，对一个model的参数进行初始化。
+
+# 自回归
+自回归（auto-regressive）属性，预测仅依赖于已发生的事情或已生成的信息。
+
+GPT，Transformer，BERT都用到了自回归。
+# LayerNorm/BatchNorm 稳定梯度，加速收敛
+LayerNorm (num_features=data.shape(axis=-1), epsilon= 1e-05, center-True, scale= True, beta _initializer=zeros, gamma_initializer='ones, in_channels=O, prefix=None, params=None)
+
+BatchNorm (num_features=data.shape(axis=1)=channel, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True, in_channels=O, prefix=None, params=None)
+
 LayerNorm是一个层规范化，而BatchNorm是一个批量规范化。为了保证数据特征分布的稳定性，会加入Normalization。可以稳定梯度，从而可以使用更大的学习率，从而加速模型的收敛速度。同时，Normalization也有一定的抗过拟合作用，使训练过程更加平稳。具体地，Normalization的主要作用就是把每层特征输入到激活函数之前，对它们进行normalization，使其转换为均值为0，方差为1的数据，从而可以避免数据落在激活函数的饱和区，以减少梯度消失的问题。
 
 参数为num_features，即通道数/（句子*）向量维度。
@@ -114,17 +126,30 @@ $$
 out =\frac{x-\operatorname{mean}[\text { data, features }]}{\sqrt{\text { Var }[\text { data, features }]}+\epsilon} * gamma + beta
 $$
 
-LayerNorm (num_features=data.shape(axis=-1), epsilon= 1e-05, center-True, scale= True, beta _initializer=zeros, gamma_initializer='ones, in_channels=O, prefix=None, params=None)
+除以标准差这一项，更像是一个自适应的学习率校正项，它一定程度上消除了不同层级的输入对参数优化的差异性，使得整个网络的优化更为“同步”，或者说使得神经网络的每一层更为“平权”，从而更充分地利用好了整个神经网络，减少了在某一层过拟合的可能性。当然，如果输入的量级过大时，除以标准差这一项也有助于降低梯度的L常数。
 
-BatchNorm (num_features=data.shape(axis=1)=channel, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True, in_channels=O, prefix=None, params=None)
+gamma为再缩放参数，beta是再偏移参数，epsilon是防止除零的情况。为了保证模型的表达能力不因为规范化而下降。我们将规范化后的数据进行再平移和再缩放，使得每个神经元对应的输入范围是针对该神经元量身定制的一个确定范围。新参数很容易通过梯度下降来学习，简化了神经网络的训练。
 
-## nn.apply
-apply(fn)的官网介绍，该方法会将fn递归的应用于模块的每一个子模块（.children()的结果）及其自身。典型的用法是，对一个model的参数进行初始化。
+**去掉center这一步后性能还略有提升**,称之为RMS Norm。论文总的结果显示：RMS Norm比Layer Normalization更快，效果也基本一致。center操作，类似于全连接层的bias项，储存到的是关于预训练任务的一种先验分布信息，而把这种先验分布信息直接储存在模型中，反而可能会导致模型的迁移能力下降。所以T5不仅去掉了Layer Normalization的center操作，它把每一层的bias项也都去掉了。
 
-# 自回归
-自回归（auto-regressive）属性，预测仅依赖于已发生的事情或已生成的信息。
+## 白化 whitening
+独立同分布的数据可以简化模型的训练以及提升模型的预测能力——这是通过训练数据获得的模型能够在测试集获得好的效果的一个基本保障。也就是说我们在使用机器学习和深度学习的时候，会把数据尽可能的做一个独立同分布的处理，用来加快模型的训练速度和提升模型的性能。
 
-GPT，Transformer，BERT都用到了自回归。
+1. 去除数据之间的关联性，使之满足独立这个条件；
+2. 使得特征具有相同的均值和方差，就是同分布。
+
+也是normalization的原因之一。
+
+## Pre Norm/Post Norm
+post-norm和pre-norm其实各有优势，post-norm在残差之后做归一化，对参数正则化的效果更强，进而模型的鲁棒性也会更好；pre-norm相对于post-norm，因为有一部分参数直接加在了后面，不需要对这部分参数进行正则化，正好可以防止模型的梯度爆炸或者梯度消失。
+
+同一设置之下，Pre Norm结构往往更容易训练，因为它的恒等路径更突出，但最终效果通常不如Post Norm。
+
+这个意思是说，当t比较大时，xt,xt+1相差较小，所以Ft+1(Norm(xt+1))与Ft+1(Norm(xt))很接近，因此原本一个t层的模型与t+1层和，近似等效于一个更宽的t层模型，所以在Pre Norm中多层叠加的结果更多是增加宽度而不是深度，层数越多，这个层就越“虚”。
+
+Pre Norm结构无形地增加了模型的宽度而降低了模型的深度，而我们知道深度通常比宽度更重要，所以是无形之中的降低深度导致最终效果变差了。同时这样最后的xl方差将会很大，所以在接预测层之前xl也还要加个Normalization。
+
+而Post Norm刚刚相反，它每Norm一次就削弱一次恒等分支的权重，所以Post Norm反而是更突出残差分支。这种做法虽然稳定了前向传播的方差，但事实上已经严重削弱了残差本身，所以反而失去了残差“易于训练”的优点，通常要warmup并设置足够小的学习率才能使它收敛。
 
 # TextCNN/CharCNN
 文本分类模型
@@ -199,7 +224,7 @@ XLNet在预训练阶段引入Permutation Language Model的训练目标。仍然�
 
     解耦是将位置信息和内容信息分别/交叉做attention。DeBERTa是相对位置编码，不同于BERT的绝对位置编码。
 
-2. 考虑绝对位置的MLM任务，Enhanced Mask Decoder；
+2. 考虑绝对位置的MLM任务，Enhanced Mask Decoder；DeBERTa比较有意思的地方，是提供了使用相对位置和绝对位置编码的一个新视角，它指出NLP的大多数任务可能都只需要相对位置信息，但确实有些场景下绝对位置信息更有帮助，于是它将整个模型分为两部分来理解。以Base版的MLM预训练模型为例，它一共有13层，前11层只是用相对位置编码，这部分称为Encoder，后面2层加入绝对位置信息，这部分它称之为Decoder，还弄了个简称EMD（Enhanced Mask Decoder）；至于下游任务的微调截断，则是使用前11层的Encoder加上1层的Decoder来进行。
 
 3. 预训练时引入对抗训练
     DeBERTa预训练里面引入的对抗训练叫SiFT，他攻击的对象不是word embedding，而是embedding之后的layer norm。
@@ -212,13 +237,14 @@ XLNet在预训练阶段引入Permutation Language Model的训练目标。仍然�
 1. Basic level masking 在预训练中，第一阶段是先采用基本层级的masking，即随机mask掉中文中的一个字。
 2. Phrase level masking第二阶段是采用词组级别的masking。我们mask掉句子中一部分词组，然后让模型预测这些词组，在这个阶段，词组的信息就被encoding到word embedding中了。
 3. Entity level masking在第三阶段命名实体，如：人名，机构名，商品名等，在这个阶段被mask掉，模型在训练完成后，也就学习到了这些实体的信息。
-## Turing-NLG 
-微软
-## OPT-175B (Open Pretrained Transfomer) 
-参数量1750亿
 
-Pathways Language Model (PaLM)
-实现了大规模的TPU上的并行训练
+## T5
+T5不仅去掉了Layer Normalization的center操作，它把每一层的bias项也都去掉了。
+
+初始化q,k的全连接层的时候，其初始化方差要多除以一个d，这同样能使得使q⋅k的初始方差变为1，T5采用了这样的做法。
+
+T5模型出自文章《Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer》，里边用到了一种更简单的相对位置编码。思路依然源自展开式(7)，如果非要分析每一项的含义，那么可以分别理解为“输入-输入”、“输入-位置”、“位置-输入”、“位置-位置”四项注意力的组合。如果我们认为输入信息与位置信息应该是独立（解耦）的，那么它们就不应该有过多的交互，所以“输入-位置”、“位置-输入”两项Attention可以删掉，剩下的位置编码换成相对位置编码我们可以直接将它作为参数训练出来。它仅仅是在Attention矩阵的基础上加一个可训练的偏置项而已。
+
 
 ## Bert改进
 随机mask，增大参数量，取消NSP，增大Batch_size （RoBERTa）
@@ -227,11 +253,13 @@ Pathways Language Model (PaLM)
 
 降低隐藏层参数量，共享隐藏层参数，修改NSP为预测句子顺序是否调换（ALBERT）
 
-位置编码改成相对位置，并且与输入分离，放在多头attention处（Transformer-XL，XlNet，DeBERTa）
+位置编码改成相对位置，并且与输入分离，放在多头attention处（Transformer-XL，XlNet，DeBERTa，T5）
 
 增加三种level的mask，分别是basic-level masking（word piece）+ phrase level masking（WWM style） + entity level masking。（ERNIE）
 
 分段后的数据做段间递归，增大长距离文本的依赖（Transformer-XL） 
+
+改进Layer Norm，取消center和bias（T5）
 # beam search
 束搜索（beam search）是贪心搜索的一个改进版本。 它有一个超参数，名为束宽（beam size）K。 在时间步，我们选择具有最高条件概率的K个词元。 这K个词元将分别是K个候选输出序列的第一个词元。束搜索在每次搜索时保存K个最好的候选序列。
 
@@ -243,8 +271,12 @@ Pathways Language Model (PaLM)
 $D(\sum XY)=\sum D(XY)=d_k$
 
 反过来看 Add attention，右侧是被 tanh() 钳位后的值，分布在[-1，1]。整体分布和 dk没有关系。
-## 不除根号dk有哪些替代方案
-用余弦相似度代替点积
+
+相应地，解决方法就有两个:
+
+1. 像NTK参数化那样，在内积之后除以$\sqrt{d}$，使q⋅k的方差变为1
+2. 初始化q,k的全连接层的时候，其初始化方差要多除以一个d，这同样能使得使q⋅k的初始方差变为1，T5采用了这样的做法。
+3. 用余弦相似度代替点积
 
 ## 怎么处理padding
 [PAD]权重置为负无穷，softmax置为0
@@ -320,6 +352,10 @@ Observation 1：BERT句向量的空间分布是不均匀的，受到词频的影
 Observation 2：BERT句向量空间是各向异性的，高频词分布较密集且整体上更靠近原点，低频词分布较稀疏且整体分布离原点相对较远，如上图A所示。因为低频词的词向量分布较稀疏，因此它们周围存在较多的“空洞”，所谓的“空洞”即几乎不能表征语义或者说在进行语义表征时，该部分空间没有被使用到是语义不明确的（poorly definded）。
 ### BERT-flow
 为了解决BERT句向量分布不平滑问题，可以利用标准化流(Normalizing Flows)将BERT句向量分布变换为一个光滑的、各向同性的标准高斯分布。
+### BERT-whitening
+对输出矩阵做SVD奇异值分解，降维。
+
+通过引入两个超参数的方式来赋予BERT-whitening一定的调参空间，使其具备“不逊色于变换前的效果”的可能性，并且保留了降维的能力。换言之，即便是之前已经训练好的句向量模型，我们也可以用新的BERT-whitening将它降维，并且保持效果基本不变，有时候甚至还更优。
 ### 对比学习
 SimCSE: Simple Contrastive Learning of Sentence Embeddings
 
@@ -449,10 +485,17 @@ L1假设模型参数服从拉普拉斯分布。在损失函数中加入这样一
 
 L1正则可以使得某些特征的系数为0，具有特征选择的能力，这便称为稀疏性(Sparsity)。
 
+无论对于什么样的输入值，都有着稳定的梯度，不会导致梯度爆炸问题，具有较为稳健性的解
+
 缺点：
 
 L1 范数没有解析解，因此计算效率上比 L2 差。
 
+在中心点是折点，不可导
+
+1. 回归任务
+2. 简单模型
+3. 神经网络通常比较复杂，直接使用L1 loss作为损失函数的非常少
 ## L2-norm Ridge：
 $$
 L=loss(x,w)+\frac{\lambda}{d}||w||_2^2
@@ -466,7 +509,7 @@ $||w||$表示模型的权重向量的L2范数，$\lambda$是正则化参数，$d
 
 优点：
 
-性能比 LASSO 回归稍好，也方便求导计算得到解析解
+性能比 LASSO 回归稍好，各点都连续光滑，也方便求导计算得到解析解
 
 岭回归的平方偏差因子向模型中引入了少量偏差，但大大减少了方差，使得模型更稳定
 
@@ -476,7 +519,13 @@ $||w||$表示模型的权重向量的L2范数，$\lambda$是正则化参数，$d
 
 岭回归没有特征选择功能
 
+不是特别的稳健，因为当函数的输入值距离真实值较远的时候，对应loss值很大在两侧，则使用梯度下降法求解的时候梯度很大，可能导致梯度爆炸
+
 L2正则和高斯分布的关系：https://blog.csdn.net/saltriver/article/details/57544704
+
+1. 回归任务
+2. 数值特征不大（防止loss太大，继而引起梯度大，梯度爆炸）
+3. 问题维度不高（loss本身比较简单，高纬度的还是得要更复杂的loss支撑）
 
 ## Elastic Net 弹性网络
 
@@ -717,6 +766,56 @@ transformer 的三角函数编码
 ## 可学习位置编码
 bert 位置编码是参数，直接对不同的位置随机初始化一个postion embedding，加到word embedding上输入模型，作为参数进行训练。
 ## 相对位置编码
+### 经典相对位置编码
+一般认为, 相对位置编码是由绝对位置编码启发而来, 考虑一般的带绝对位置编码的Attention:
+$$
+\left\{\begin{aligned}
+\boldsymbol{q}_{i} &=\left(\boldsymbol{x}_{i}+\boldsymbol{p}_{i}\right) \boldsymbol{W}_{Q} \\
+\boldsymbol{k}_{j} &=\left(\boldsymbol{x}_{j}+\boldsymbol{p}_{j}\right) \boldsymbol{W}_{K} \\
+\boldsymbol{v}_{j} &=\left(\boldsymbol{x}_{j}+\boldsymbol{p}_{j}\right) \boldsymbol{W}_{V} \\
+a_{i, j} &=\operatorname{softmax}\left(\boldsymbol{q}_{i} \boldsymbol{k}_{j}^{\top}\right) \\
+\boldsymbol{o}_{i} &=\sum_{j} a_{i, j} \boldsymbol{v}_{j}
+\end{aligned}\right.
+$$
+其中softmax对 $j$ 那一维归一化, 这里的向量都是指行向量。我们初步展开 $\boldsymbol{q}_{i} \boldsymbol{k}_{j}^{\top}$ :
+$$
+\boldsymbol{q}_{i} \boldsymbol{k}_{j}^{\top}=\left(\boldsymbol{x}_{i}+\boldsymbol{p}_{i}\right) \boldsymbol{W}_{Q} \boldsymbol{W}_{K}^{\top}\left(\boldsymbol{x}_{j}+\boldsymbol{p}_{j}\right)^{\top}=\left(\boldsymbol{x}_{i} \boldsymbol{W}_{Q}+\boldsymbol{p}_{i} \boldsymbol{W}_{Q}\right)\left(\boldsymbol{W}_{K}^{\top} \boldsymbol{x}_{j}^{\top}+\boldsymbol{W}_{K}^{\top} \boldsymbol{p}_{j}^{\top}\right)
+$$
+为了引入相对位置信息, Google把第一项位置去掉, 第二项 $\boldsymbol{p}_{j} \boldsymbol{W}_{K}$ 改为二元位置向量 $\boldsymbol{R}_{i, j}^{K}$, 变成
+$$
+a_{i, j}=\operatorname{softmax}\left(\boldsymbol{x}_{i} \boldsymbol{W}_{Q}\left(\boldsymbol{x}_{j} \boldsymbol{W}_{K}+\boldsymbol{R}_{i, j}^{K}\right)^{\top}\right)
+$$
+$$
+\begin{array}{r}
+\text { 以及 } \boldsymbol{o}_{i}=\sum_{j} a_{i, j} \boldsymbol{v}_{j}=\sum_{j} a_{i, j}\left(\boldsymbol{x}_{j} \boldsymbol{W}_{V}+\boldsymbol{p}_{j} \boldsymbol{W}_{V}\right) \text { 中的 } \boldsymbol{p}_{j} \boldsymbol{W}_{V} \text {换成} \boldsymbol{R}_{i, j}^{V}
+\end{array}
+$$
+$$
+\begin{array}{r}
+\boldsymbol{o}_{i}=\sum_{j} a_{i, j}\left(\boldsymbol{x}_{j} \boldsymbol{W}_{V}+\boldsymbol{R}_{i, j}^{V}\right)
+\end{array}
+$$
+所谓相对位置, 是将本来依赖于二元坐标 $(i, j)$ 的向量 $\boldsymbol{R}_{i, j}^{K}, \boldsymbol{R}_{i, j}^{V}$, 改为只依赖于相对距离 $i-j$, 并且通 常来说会进行截断, 以适应不同任意的距离
+$$
+\begin{aligned}
+&\boldsymbol{R}_{i, j}^{K}=\boldsymbol{p}_{K}\left[\operatorname{clip}\left(i-j, p_{\min }, p_{\max }\right)\right] \\
+&\boldsymbol{R}_{i, j}^{V}=\boldsymbol{p}_{V}\left[\operatorname{clip}\left(i-j, p_{\min }, p_{\max }\right)\right]
+\end{aligned}
+$$
+这样一来, 只需要有限个位置编码, 就可以表达出任意长度的相对位置（因为进行了截断）, 不管 $\boldsymbol{p}_{K}, \boldsymbol{p}_{V}$ 是选择可训练式的还是三角函数式的, 都可以达到处理任意长度文本的需求。
+
+### XLNET/Transformer-XL
+XLNET式位置编码其实源自Transformer-XL的论文 《Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context》, 只不过因为使用了Transformer-XL架构的XLNET模型并在一定 程度上超过了BERT后, Transformer-XL才算广为人知，因此这种位置编码通常也被冠以XLNET之 名。
+XLNET式位置编码源于对上述 $\boldsymbol{q}_{i} \boldsymbol{k}_{j}^{\top}$ 的完全展开:
+$$
+\boldsymbol{q}_{i} \boldsymbol{k}_{j}^{\top}=\boldsymbol{x}_{i} \boldsymbol{W}_{Q} \boldsymbol{W}_{K}^{\top} \boldsymbol{x}_{j}^{\top}+\boldsymbol{x}_{i} \boldsymbol{W}_{Q} \boldsymbol{W}_{K}^{\top} \boldsymbol{p}_{j}^{\top}+\boldsymbol{p}_{i} \boldsymbol{W}_{Q} \boldsymbol{W}_{K}^{\top} \boldsymbol{x}_{j}^{\top}+\boldsymbol{p}_{i} \boldsymbol{W}_{Q} \boldsymbol{W}_{K}^{\top} \boldsymbol{p}_{j}^{\top}
+$$
+Transformer-XL的做法很简单, 直接将 $\boldsymbol{p}_{j}$ 替换为相对位置向量 $\boldsymbol{R}_{i-j}$, 至于两个 $\boldsymbol{p}_{i}$, 则干脆替换为两个 可训练的向量 $u, v$ :
+$$
+\boldsymbol{x}_{i} \boldsymbol{W}_{Q} \boldsymbol{W}_{K}^{\top} \boldsymbol{x}_{j}^{\top}+\boldsymbol{x}_{i} \boldsymbol{W}_{Q} \boldsymbol{W}_{K}^{\top} R_{i-j}^{\top}+u \boldsymbol{W}_{Q} \boldsymbol{W}_{K}^{\top} \boldsymbol{x}_{j}^{\top}+v \boldsymbol{W}_{Q} W_{K}^{\top} R_{i-j}^{\top}
+$$
+该编码方式中的 $\boldsymbol{R}_{i-j}$ 没有像式(6)那样进行截断，而是直接用了Sinusoidal式的生成方案。此外, $\boldsymbol{v}_{j}$ 上 的位置偏置就直接去掉了, 即直接令 $o_{i}=\sum_{j} a_{i, j} x_{j} W_{V}$ 。似乎从这个工作开始, 后面的相对位置编码 都只加到Attention矩阵上去, 而不加到 $\boldsymbol{v}_{j}$ 上去了。
+
 $$
 \begin{aligned}
 p_{i, j}[2k] &=\sin \left(\frac{j-i}{10000^{2k / d}}\right) \\
@@ -727,6 +826,14 @@ $$
 2k是向量的第几个数，i,j是索引位置。
 
 是在attention阶段加入。
+
+### T5式
+T5模型出自文章《Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer》，里边用到了一种更简单的相对位置编码。思路依然源自展开式(7)，如果非要分析每一项的含义，那么可以分别理解为“输入-输入”、“输入-位置”、“位置-输入”、“位置-位置”四项注意力的组合。如果我们认为输入信息与位置信息应该是独立（解耦）的，那么它们就不应该有过多的交互，所以“输入-位置”、“位置-输入”两项Attention可以删掉，剩下的位置编码换成相对位置编码我们可以直接将它作为参数训练出来。它仅仅是在Attention矩阵的基础上加一个可训练的偏置项而已。
+
+### DeBERTa式
+其实DeBERTa的主要改进也是在位置编码上，同样还是从展开式(7)出发，T5是干脆去掉了第2、3项，只保留第4项并替换为相对位置编码，而DeBERTa则刚刚相反，它扔掉了第4项，保留第2、3项并且替换为相对位置编码。
+
+DeBERTa比较有意思的地方，是提供了使用相对位置和绝对位置编码的一个新视角，它指出NLP的大多数任务可能都只需要相对位置信息，但确实有些场景下绝对位置信息更有帮助，于是它将整个模型分为两部分来理解。以Base版的MLM预训练模型为例，它一共有13层，前11层只是用相对位置编码，这部分称为Encoder，后面2层加入绝对位置信息，这部分它称之为Decoder，还弄了个简称EMD（Enhanced Mask Decoder）；至于下游任务的微调截断，则是使用前11层的Encoder加上1层的Decoder来进行。
 
 ### 旋转位置编码 RoPE
 RoPE的基本思路是通过绝对位置编码的方式，使得模型可以注意到相对位置。其思路和三角式位置编码有一些相似，实际上其形式也恰巧与三角函数也有所相似。
@@ -839,6 +946,20 @@ RoPE的基本思路是通过绝对位置编码的方式，使得模型可以注�
 随着网络层数的增加，网络会发生退化现象：随着网络层数的增加训练集loss逐渐下降，然后趋于饱和，如果再增加网络深度的话，训练集loss反而会增大，注意这并不是过拟合，因为在过拟合中训练loss是一直减小的。
 
 残差链接。 
+
+# 残差链接作用
+1. 防止梯度爆炸/增量爆炸
+   
+   模型每一步的更新量是正比于模型深度N的（宽度不在本文讨论范围），如果模型越深，那么更新量就越大，这意味着初始阶段模型越容易进入不大好的局部最优点，然后训练停滞甚至崩溃，这就是“增量爆炸”问题。
+2. 治标之法
+   
+   “增量爆炸”就是在层数变多时，参数的微小变化就会导致损失函数的大变化，这对于模型的训练，特别是初始阶段的训练时尤其不利的。对此，一个直接的应对技巧就是Wamrup，初始阶段先用极小的学习率，然后再慢慢增大，避免在初始阶段学习过快。待模型平稳渡过初始阶段的“危险期”后，就可以正常训练了。
+
+    然而，尽管Wamrup能起到一定的作用，但其实是“治标不治本”的，因为“参数的微小变化就会导致损失函数的大变化”意味着模型本身的抖动很大，用更专业的话说就是模型的landscape极度不平滑了，这不是一个好模型应该具备的性质。因此，我们应该通过修改模型来解决这个问题，而不是通过降低学习率这种“表面”方法。
+3. 稳定传播
+   
+   如果只是纯粹地缩小梯度，那么很简单，只要尽量降低初始化方差就行。但实际上我们在缩小梯度的同时，必须还要保持前向传播稳定性，因为前向传播的稳定性是我们对所做任务的一种先验知识，它意味着是模型更好的起点。
+4. 因为残差结构是可以同时稳定前向传播和反向传播、并且可以缩放参数梯度以解决增量爆炸的一种设计，它能帮助我们训练更深层的模型。
 
 
 # Feature-based和Fine-tune的区别
@@ -997,6 +1118,10 @@ masked self attention
   
     Transformer和CNN差不多，都强于RNN
 
+RNN要逐步递归才能获得全局信息，因此一般要双向RNN才比较好；CNN事实上只能获取局部信息，是通过层叠来增大感受野；Attention的思路最为粗暴，它一步到位获取了全局信息：纯Attention！单靠注意力就可以。
+
+Attention层的好处是能够一步到位捕捉到全局的联系，因为它直接把序列两两比较（代价是计算量变为$O(n^2)$，当然由于是纯矩阵运算，这个计算量相当也不是很严重）；相比之下，RNN需要一步步递推才能捕捉到，而CNN则需要通过层叠来扩大感受野，这是Attention层的明显优势。
+
 # 梯度截断 gradient clip norm
 1. 首先设置一个梯度阈值：clip_gradient
 
@@ -1026,7 +1151,11 @@ masked self attention
 # 项目改进
 标注任务，增加数据量，交叉标注，增加冗余信息
 
-负采样，增加噪声，防止过拟合
+负采样，针对被标注为实体的span和未被标注为实体但其本身是实体的span计算交叉熵损失。
+
+EDA数据增强，增加噪声，防止过拟合
+
+NLP的Data Augmentation大致有两条思路，一个是加噪，另一个是回译，均为有监督方法。加噪即为在原数据的基础上通过替换词、删除词等方式创造和原数据相类似的新数据。回译则是将原有数据翻译为其他语言再翻译回原语言，由于语言逻辑顺序等的不同，回译的方法也往往能够得到和原数据差别较大的新数据。
 
 dropout
 
@@ -1039,7 +1168,6 @@ BERT-MRC模型，去掉无用的CRF
 focal loss
 
 active learning，需要一个外在的能够对其请求进行标注的实体(通常就是相关领域人员)，即主动学习是交互进行的。
-
 # 序列标注
 1. 进行序列标注时CRF是必须的吗？
 
@@ -1082,9 +1210,159 @@ BERT的拟合能力太强了，就连Softmax效果都能达到最优了，转移
 
 比如我把温度系数调低(T<1)，拉大softmax的输出分布，降低loss，不过度优化模型。当然，相反的情况下，比如我们想增加模型的判别能力，也把温度系数提高(T>1)。
 
+记 $x_{\max }=\max \left(x_{1}, x_{2}, \cdots, x_{n}\right)$, 那么显然有
+$$
+e^{x_{\max }}<\sum_{i=1}^{n} e^{x_{i}} \leq \sum_{i=1}^{n} e^{x_{\max }}=n e^{x_{\max }}
+$$
+各端取对数即得
+$$
+x_{\max }<\log \operatorname{sumexp}(x) \leq x_{\max }+\log n
+$$
+这是关于logsumexp上下界的最基本结果, 它表明logsumexp对max的近似误差不超过 $\log n$ 。注意这 个误差跟 $x$ 本身无关, 于是我们有
+$$
+x_{\max } / \tau<\operatorname{logsumexp}(x / \tau) \leq x_{\max } / \tau+\log n
+$$
+各端乘以 $\tau$ 得到
+$$
+x_{\max }<\tau \operatorname{logsumexp}(x / \tau) \leq x_{\max }+\tau \log n
+$$
+当 $\tau \rightarrow 0$ 时, 误差就趋于o了, 这告诉我们可以通过降低温度参数来提高对max的近似程度。
+
+$$
+\operatorname{logsumexp}(x) \geq \hat{x} + logn
+$$
+
 # 最大似然估计（MLE）、最大后验概率估计（MAP）和贝叶斯估计
 最大似然估计（MLE）只关注模型的参数，对参数的分布没有假设，即直接求求最大化p(x|$\theta$)的概率。将概率密度估计问题转化为参数估计问题.
 
 最大后验概率估计（MAP）关注参数的分布，对模型的参数有假设，需要提前使用先验概率估计确定的p($\theta$)，最后求最大化p(x|$\theta$)*p($\theta$)的概率。
 
 贝叶斯估计关注参数分布，但不会确定p($\theta$)，而是估计成分布变量进行计算。
+
+# warmup
+warmup是一种学习率优化方法（最早出现在ResNet论文中）。在模型训练之初选用较小的学习率，训练一段时间之后（如：10epoches或10000steps）使用预设的学习率进行训练；
+
+# 样本不均衡
+会导致模型泛化能力大大降低，对比例大的样本造成过拟合，预测偏向样本数较多的分类。
+
+## 解决方案
+1. 欠采样（undersampling）
+   
+    又叫下采样，减少样本数较多的样本，采用丢弃或选取部分样本的方法。但若随机丢弃负样本，可能丢失一些重要信息（导致模型只学习到总体模式的一部分 ）。其代表性算法为EasyEnsemble。
+
+2. 过采样（oversampling）
+    
+    又叫上采样，增加样本数少的样本，但不能简单地对初始正样本进行重复采样（直接复制），否则会导致过拟合。可以加入轻微的随机扰动。
+
+    其代表性算法SMOTE是通过对训练集中的正例进行插值来产生额外的正例。
+
+3. 数据合成
+    
+    合成少数类样本，组合已有样本特征(从各个feature中随机选出一个已有值，拼接成一个新样本)，产生新样本。代表性方法是SMOTE，在相似样本中进行特征的随机选择并拼接出新样本。
+
+4. 增大少数类样本权重
+    
+    当少数类样本被误分时，其损失值要乘上相应的权重，从而让分类器更加关注这一类数目较少的样本。类似boosting的方法。
+
+5. focal loss
+
+6. 数据增强
+# 初始化
+## Xavier
+Xavier 是2010 年提出的，针对有非线性激活函数时的权值初始化方法，目标是均值为0、方差为1/m的随机分布，主要针对饱和激活函数如 sigmoid 和 tanh 等。同时考虑前向传播和反向传播，
+## NTK参数化
+NTK参数化：用“均值为0、方差为1的随机分布”来初始化，但是将输出结果除以$\sqrt{m}$。高斯过程中被称为“NTK参数化”
+
+NTK参数化跟直接用Xavier初始化相比，有什么好处吗？
+
+理论上，利用NTK参数化后，所有参数都可以用方差为1的分布初始化，这意味着每个参数的量级大致都是相同的O(1)级别，于是我们可以设置较大的学习率
+
+总的来说，NTK参数化能让我们更平等地处理每一个参数，并且比较形象地了解到训练的更新幅度，以便我们更好地调整参数。
+
+考虑激活函数得场景
+
+1. tanh(x) 在x比较小的时候有tanh(x)≈x，所以可以认为 Xavier初始化直接适用于tanh激活；
+
+2. relu时可以认为relu(y)会有 大约一半的元素被置零，所以模长大约变为原来的$\frac{1}{\sqrt{2}}$，而要保持模长不变，可以让W乘上$\sqrt{2}$，也就是说初始化方差从1/m变成2/m
+# 数据增强
+## EDA
+Easy Data Augmentation for Text Classification Tasks （EDA）提出并验证了几种加噪的 text augmentation 技巧，分别是同义词替换（SR: Synonyms Replace）、随机插入(RI: Randomly Insert)、随机交换(RS: Randomly Swap)、随机删除(RD: Randomly Delete)
+
+(1) 同义词替换（SR: Synonyms Replace）：不考虑stopwords，在句子中随机抽取n个词，然后从同义词词典中随机抽取同义词，并进行替换。
+
+Eg: “我非常喜欢这部电影” —> “我非常喜欢这个影片”，句子仍具有相同的含义，很有可能具有相同的标签。
+
+(2) 随机插入(RI: Randomly Insert)：不考虑stopwords，随机抽取一个词，然后在该词的同义词集合中随机选择一个，插入原句子中的随机位置。该过程可以重复n次。
+
+Eg : “我非常喜欢这部电影” —> “爱我非常喜欢这部影片”。
+
+(3) 随机交换(RS: Randomly Swap)：句子中，随机选择两个词，位置交换。该过程可以重复n次。
+
+Eg: “如何评价 2017 知乎看山杯机器学习比赛?” —> “2017 机器学习?如何比赛知乎评价看山杯”。
+
+(4) 随机删除(RD: Randomly Delete)：句子中的每个词，以概率p随机删除。
+
+Eg: “如何评价 2017 知乎看山杯机器学习比赛?" —> “如何 2017 看山杯机器学习 ”。
+
+训练数据越少，提升效果效果越明显。
+
+同义词替换SR有一个小问题，同义词具有非常相似的词向量，而训练模型时这两个句子会被当作几乎相同的句子，但在实际上并没有对数据集进行有效的扩充。
+
+随机插入RI很直观的可以看到原本的训练数据丧失了语义结构和语义顺序，而不考虑停用词的做法使得扩充出来的数据并没有包含太多有价值的信息，同义词的加入并没有侧重句子中的关键词，在数据扩充的多样性上实际会受限较多。
+
+随机交换RS实质上并没有改变原句的词素，对新句式、句型、相似词的泛化能力实质上提升很有限。
+
+随机删除RD不仅有随机插入的关键词没有侧重的缺点，也有随机交换句式句型泛化效果差的问题。随机的方法固然能够照顾到每一个词，但是没有关键词的侧重，若随机删除的词刚好是分类时特征最强的词，那么不仅语义信息可能被改变，标签的正确性也会存在问题。
+## 回译
+用机器翻译把一段中文翻译成另一种语言，然后再翻译回中文。
+
+回译的方法往往能够增加文本数据的多样性，相比替换词来说，有时可以改变句法结构等，并保留语义信息。但是，回译的方法产生的数据依赖于翻译的质量，大多数出现的翻译结果可能并不那么准确。
+
+## 半监督
+猜测数据扩增方法产生的无标签样本的低熵标签，并把无标签数据和有标签数据混合起来。
+
+## 无监督数据增强UDA
+传统的数据增广方法有一定的效果，但主要针对小数据量，对于渴求大量训练数据的深度学习模型，传统的方法效果始终有限。而Unsupervised Data Augmentation（UDA）无监督数据扩增方法的提出，为大量数据缺失打开了一扇大门。
+
+得益于对特定任务使用特定目标的数据增强算法。
+
+UDA对增广后未标记的数据预测结果使用KL散度，对有标签的数据训练时加入了cross entropy loss 函数
+
+UDA采用了Training Signal Annealing（TSA）方法在训练时逐步释放训练信号。
+
+当收集了少量的标注的数据和大量未标记的数据时，可能会面临标记数据和未标记数据相差很大的情况。因为需要采用大量的未标记数据进行训练，所需的模型会偏大，而大模型又会轻松的在有限的有监督数据上过拟合，这时TSA就要逐步的释放有监督数据的训练信号了。
+
+作者对每个training step 都设了一个阈值ηt，且小于等于1，当一个标签例子的正确类别P的概率高于阈值ηt时，模型从损失函数中删除这个例子，只训练这个minibatch下其他标记的例子。
+
+## 总结
+训练机器学习或深度学习模型时，良好的数据往往是影响模型的效果最重要的因素之一。而数据不足时数据增强是一个常用的方法。
+
+文本数据增强从对原数据词的变动到句子的变动到段落的变动都有不同的方法，为了保证能够真实提高数据的质量，有以下几个点尤为重要：
+
+（1）增加的数据要保证和原数据一致的语义信息。
+
+新增后的数据和原数据拥有一样标签的同时，更需要保证有一样的语义信息。单独随机去掉某个词的方式很可能会改变整句的含义（比如去掉一个否定词）。
+
+（2）增加的数据需要多样化。
+
+从替换词、句式、句型等方面都需要有新的数据以增强模型的泛化能力，单独交换词的方式较为局限。
+
+（3）增加的数据要避免在有标签数据上过拟合。
+
+当大量的数据在少量的有标签数据上过拟合时，模型虽然可能会出现很高的f1值，但真实的预测效果会相差很多。保证多样化的数据还要保证数据的质量。
+
+（4）增加的数据和原数据保持一定的平滑性会更有价值，提高训练效率。
+
+生成的数据更接近于真实数据可以保证数据的安全性，大噪音产生的数据和原始数据的标签很可能不同。尤其在某些序列模型中，文本数据的通顺程度严重影响模型的预测。
+
+（5）增加数据的方法需要带着目标去选择。
+
+对数据缺失的需求明确才能更快的找到理想的数据，对某些关键词的同义词需求较多可以偏重替换词的方式，对句式缺失较多可以偏重回译或者句式语法结构树变换的方式。
+
+对于小数据的情况，使用文本回译或EDA中的简单方法可以达到效果的提升；但想要使用大批量的数据训练神经网络模型，EDA或者回译的方式产生的文本可能并不能满足需求。
+
+而UDA这种无监督数据增强技术，无论对于小数据量或大数据量数据，都可以找到带有目标性的方法获得增强后的平滑的数据，甚至有时效果高于有监督方法训练的模型。
+
+综上，数据增强的方法可以作为我们训练nlp模型时一个快速解决数据不平衡或数据缺失的强有力的工具。
+
+
