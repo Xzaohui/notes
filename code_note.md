@@ -33,7 +33,7 @@ def reverse(head):
 ```
 
 ## 堆 heapq
-```py
+```python
 import heapq
 class Solution:
     def topKFrequent(self, nums: List[int], k: int) -> List[int]:
@@ -68,7 +68,8 @@ str.strip([chars]);
 还有lstrip，rstrip
 
 注意：该方法只能删除开头或是结尾的字符，不能删除中间部分的字符。
-## match、search、findall、finditer
+## re match、search、findall、finditer
+
 都可以用r''正则表达式来匹配，也可以是普通的字符串
 
 re.findall(r'',str)
@@ -94,9 +95,24 @@ rfind()：和find()功能相同，但查找方向从右侧开始
 
 rindex()：和index()功能相同，但查找方向从右侧开始
 ## bisect
+使用 bisect 模块的方法之前，要求操作对象是 有序序列（升序，降序取负号）
+
+bisect 与 bisect_left，insort_left 的区别：当插入的元素和序列中的某一个元素相同时，该插入到该元素的前面（左边，left），还是后面（右边）；如果是查找，则返回该元素的位置还是该元素之后的位置。
+
 查找： bisect.bisect/bisect_left/bisect_right(array, item)
 
 插入： bisect.insort/insort_left/insort_right(array,item)
+```python
+class Solution:
+    def reversePairs(self, nums: List[int]) -> int:
+        q = []
+        res = 0
+        for v in nums:
+            i = bisect.bisect_left(q,-v) #bisect后的插入保证了有序性，同时可以反应出有几个比目标数大。
+            res += i
+            q[i:i] = [-v] #切片做插入，速度快很多
+        return res
+```
 ## nonlocal/global
 ```python
 def dome_fun():
@@ -131,7 +147,7 @@ global_test()
     global关键字可以用在任何地方，包括最上层函数中和嵌套函数中；
 
     nonlocal关键字只能用于嵌套函数中，并且外层函数中必须定义了相应的局部变量，否则会发生错误
-## zip
+## zip/itertools.zip_longest
 ```python
 zip(iterable1, iterable2, ...)
 #54. 螺旋矩阵
@@ -144,9 +160,21 @@ class Solution:
 # 48. 旋转图像矩阵
 matrix[:] = zip(*matrix[::-1])
 ```
+
+itertools.zip_longest和zip作用基本相同，但是多了一个fillvalue参数，可以指定填充的值。
+
+165. 比较版本号
+```python
+class Solution:
+    def compareVersion(self, version1: str, version2: str) -> int:
+        for x, y in zip_longest(version1.split('.'), version2.split('.'), fillvalue='0'):
+            a, b = int(x), int(y)
+            if a != b: return 1 if a > b else -1
+        return 0 
+```
 ## 类的运算符重载
 
-比较运算符（<，<=，>，> =，==和！=）可以通过为__lt __，__ le __，__ gt __，__ ge __，__ eq__和__ne__魔术方法提供定义来重载，以比较类的对象。 
+比较运算符（<，<=，>，> =，==和！=）可以通过为__ lt __ ，__ le __ ，__ gt __ ，__ ge __ ，__ eq__和__ne__魔术方法提供定义来重载，以比较类的对象。 
 
 ```python
 def __lt__(self, other):
@@ -280,7 +308,7 @@ class Solution:
 
 ## 二叉树
 二叉树共父节点 https://leetcode.cn/problems/lowest-common-ancestor-of-a-binary-tree/comments/
-```py
+```python
 class Solution:
     def lowestCommonAncestor(self, root: 'TreeNode', p: 'TreeNode', q: 'TreeNode') -> 'TreeNode':
         if root==p or root==q or root==None:
@@ -298,10 +326,11 @@ class Solution:
 ```
 
 ## 二叉搜索树
+
 中序遍历有序
 
 删除某一节点
-```py
+```python
 def deleteNode(root, key):
     if not root: return None;
     if root.val > key:
@@ -313,16 +342,28 @@ def deleteNode(root, key):
             root = root.left if root.left else root.right
         else:
             cur = root.right
-            while cur.left: cur = cur.left #右子树的最小值，也可用左子树的最大值
+            while cur.left: cur = cur.left #右子树的最小值，也可用左子树的最大值和要删除的做替换
             root.val = cur.val
             root.right = deleteNode(root.right, cur.val) 
-        
     return root
 ```
+二叉搜索树是否合法
+```python
+class Solution:
+    def isValidBST(self, root: Optional[TreeNode]) -> bool:
+        def valid(node,min,max):
+            if  not node:
+                return True
+            if node.val<=min or node.val>=max:
+                return False
+            return valid(node.left,min,node.val) and valid(node.right,node.val,max)
+        return valid(root,-inf,inf)
+```
+
 
 ## 平衡二叉树
 
-```py
+```python
 # left _rotation
 def left_rotation(root):
     temp=root.right
@@ -420,8 +461,8 @@ class Solution:
 ```
 
 ## 公祖问题
-    
-```py
+
+```python
 def lowestCommonAncestor(root, p, q):
     if root is None or root == p or root == q: #如果root是p或者q，那么直接返回，若p或q是公祖则后面也不用找了
         return root
@@ -430,6 +471,25 @@ def lowestCommonAncestor(root, p, q):
     if left and right:      # 如果左右子树都不为空，说明p和q分别在左子树和右子树上，那么这个节点就是公共祖先
         return root
     return left if left else right # 如果左右子树有一个为空，说明p和q在同一侧，返回前一侧的子树
+
+非递归版本
+class Solution:
+    def lowestCommonAncestor(self, root: 'TreeNode', p: 'TreeNode', q: 'TreeNode') -> 'TreeNode':
+        a = []
+        path = [root]
+        def dfs(root):
+            if not root: return
+            if root.val in [p.val,q.val]:
+                a.append(list(path))    # 记录路径
+            for node in [root.left,root.right]:
+                path.append(node)
+                dfs(node)
+                path.pop()
+        dfs(root)
+        i=0
+        while i<min(len(a[0]),len(a[1])) and a[0][i].val==a[1][i].val:
+            i+=1
+        return a[0][i-1]
 ```
 ## Trie 树
 也叫“字典树”。顾名思义，它是一个树形结构。它是一种专门处理字符串匹配的数据结构，用来解决在一组字符串集合中快速查找某个字符串的问题。
@@ -457,7 +517,7 @@ Trie 树的本质，就是利用字符串之间的公共前缀，将重复的前
 方法一： 将每个节点中的数组换成其他数据结构，比如有序数组、跳表、散列表、红黑树等。
 
     假设我们用有序数组，数组中的指针按照所指向的子节点中的字符的大小顺序排列。
-
+    
     通过二分查找的方法，快速查找到某个字符应该匹配的子节点的指针。（这就不用维护一个上述26的数组，只需要维护两个可能的字符数组）当然，这样为了维护数组顺序，插入元素效率较慢。
 
 方法二：缩点优化
@@ -478,6 +538,43 @@ AC自动机是KMP和trie的结合体。KMP算法适用于单模式串的匹配�
 Trie 树只是不适合精确匹配查找，这种问题更适合用散列表或者红黑树来解决。 Trie 树比较适合的是查找前缀匹配的字符串
 
 Trie 树的这个应用可以扩展到更加广泛的一个应用上，就是自动输入补全，比如输入法自动补全功能、IDE 代码编辑器自动补全功能、浏览器网址输入的自动补全功能等等。
+
+
+## 440. 字典序的第K小数字
+```python
+# 本质是一个10叉树的先序遍历,找到按照先序遍历的第k个节点
+# 为什么是先序遍历?这个由字典序的性质决定:[1,10,100,1000,1001]
+# 假设相同位数的数字在10叉树的同一层上,那么就是先序遍历就是字典序排列
+# 从cur=1开始进行遍历,先计算的以cur为根的且<=n的节点个数nodes
+# 若nodes<=k,说明以cur开头的合格节点数不够,cur应该向右走:cur++
+# 若nodes>k,说明以cur开头的合格节点数足够,cur应该向下走:cur*=10
+class Solution:
+    def findKthNumber(self, n: int, k: int) -> int:
+        cur=1
+        k-=1 #1已经计算过了
+        def count_tree(cur): #计算以cur为根的且<=n的节点个数
+            next=cur+1 #相邻的下一个节点
+            num=0
+            while cur<=n:
+                #这里是最关键的一步:当n不在cur层时,该层有效节点数目为next - cur(全部都要了)
+                #当n在cur层时,该层有效节点数目为n - cur + 1(要一部分)
+                #统一起来就是取最小值
+                num+=min(n-cur+1,next-cur) 
+                cur*=10 #向下走
+                next*=10 
+            return num
+        while k>0:
+            ctree=count_tree(cur) 
+            if ctree<=k: #以cur开头的合格节点数不够,cur应该向右走
+                cur+=1
+                k-=ctree #k减去以cur开头的合格节点数
+            else:
+                cur*=10 #以cur开头的合格节点数足够,cur应该向下走
+                k-=1 #cur已经计算过了，k-=1
+        
+        return cur
+```
+
 # 贪心
 
 ## 分发糖果
@@ -488,7 +585,7 @@ Trie 树的这个应用可以扩展到更加广泛的一个应用上，就是自
 
 一次是从右到左遍历，只比较左边孩子评分比右边大的情况。
 
-```py
+```python
 class Solution:
     def candy(self, ratings: List[int]) -> int:
         candyVec = [1] * len(ratings)
@@ -504,7 +601,7 @@ class Solution:
 # dp
 
 ## 编辑距离
-```py
+```python
 # 变换cost相同
 def minDistance(self, word1: str, word2: str) -> int:
         word1=list(word1)
@@ -556,15 +653,16 @@ class Solution:
         return dp[-1][-1]
 ```
 ## 跳表问题
+
 45. 跳跃游戏 II
-```py
+```python
 for i in range(len(nums)-2,-1,-1):
     jump[i]=min([jump[j] for j in range(i+1,min(i+nums[i]+1,len(nums)))])+1
 return jump[0]
 ```
 ## 买卖股票
 ### 只买卖一次
-```py
+```python
 def maxProfit(self, prices: List[int]) -> int:
     length = len(prices)
     if len == 0:
@@ -578,9 +676,9 @@ def maxProfit(self, prices: List[int]) -> int:
     return dp[-1][1]
 ```
 
-
 ### 多次买卖（含手续费）
-```py
+
+```python
 def maxProfit(self, prices: List[int]) -> int:
     length = len(prices)
     dp = [[0] * 2 for _ in range(length)]
@@ -592,7 +690,7 @@ def maxProfit(self, prices: List[int]) -> int:
     return dp[-1][1]
 ```
 ### 规定次数买卖
-```py
+```python
 def maxProfit(self, k: int, prices: List[int]) -> int:
     if len(prices) == 0:
         return 0
@@ -615,10 +713,10 @@ def maxProfit(self, k: int, prices: List[int]) -> int:
 
 分割 等和子集、最相似子集：背包大小为和的一半。
 
-目标和，有+-符号组合：转换为letf-right=traget，left+right=sum，left=sum+target/2。再转化为01背包。
+目标和，有+-符号组合：转换为letf-right=traget，left+right=sum，left=(sum+target)/2。再转化为01背包。
 
 一和零：二维01背包问题，两个容量限制。注意两个都要倒序计算。
-```py
+```python
 class Solution:
     def findMaxForm(self, strs: List[str], m: int, n: int) -> int:
         dp=[[0]*(n+1) for _ in range(m+1)]
@@ -641,7 +739,7 @@ class Solution:
 377.组合总和有顺序要求。
 
 有次数要求就二维数组，或一维数组从后到前更新。
-```py
+```python
 for coin in coins: #零钱兑换问题
     for i in range(1,amount+1):
         if coin <=i:
@@ -685,7 +783,7 @@ class Solution:
 337. 打家劫舍 III
 
 https://leetcode.cn/problems/house-robber-iii/
-```py
+```python
 def trob(root):
    if root == None:
        return [0,0]
@@ -747,7 +845,71 @@ class Solution:
 
         return max(dfs(i, j) for i in range(row) for j in range(col))
 ```
+## 887. 鸡蛋掉落
+状态可以表示成 (k,n)，其中 k 为鸡蛋数，n 为楼层数。当我们从第 x 楼扔鸡蛋的时候：
 
+如果鸡蛋不碎，那么状态变成(k,n−x)，即我们鸡蛋的数目不变，但答案只可能在上方的 n-x 层楼了。也就是说，我们把原问题缩小成了一个规模为(k,n−x) 的子问题；
+
+如果鸡蛋碎了，那么状态变成 (k−1,x−1)，即我们少了一个鸡蛋，但我们知道答案只可能在第 xx 楼下方的 x-1x−1 层楼中了。也就是说，我们把原问题缩小成了一个规模为 (k-1, x-1)的子问题。
+
+
+
+每一步都应该在第 dp[k-1][t-1] + 1 层丢鸡蛋。
+
+第一,如果蛋碎了,那么我们一定能用k-1个鸡蛋用m-1步测出下面的dp[k-1][m-1]层楼。
+
+第二,如果蛋没碎,最多可以测出上面的dp[k][m-1]层楼(能测出的层数对于上下来说一样)
+
+dp[k][m]那么总共可以测出dp[k-1][m-1]+dp[k][m-1]+1层楼
+```python
+class Solution:
+    def superEggDrop(self, k: int, n: int) -> int:
+        if n == 1:
+            return 1
+        f = [[0] * (k + 1) for _ in range(n + 1)]
+        for i in range(1, k + 1):
+            f[1][i] = 1
+        ans = -1
+        for i in range(2, n + 1):
+            for j in range(1, k + 1):
+                f[i][j] = 1 + f[i - 1][j - 1] + f[i - 1][j]
+            if f[i][k] >= n:
+                ans = i
+                break
+        return ans
+
+
+#传统想法
+class Solution:
+    def superEggDrop(self, k: int, n: int) -> int:
+        memo = {}
+        def dp(k, n):
+            if (k, n) not in memo:
+                if n == 0:
+                    ans = 0
+                elif k == 1:
+                    ans = n
+                else:
+                    lo, hi = 1, n
+                    # keep a gap of 2 x values to manually check later
+                    while lo + 1 < hi:
+                        x = (lo + hi) // 2
+                        t1 = dp(k - 1, x - 1)
+                        t2 = dp(k, n - x)
+
+                        if t1 < t2:
+                            lo = x
+                        elif t1 > t2:
+                            hi = x
+                        else:
+                            lo = hi = x
+                    ans = 1 + min(max(dp(k - 1, x - 1), dp(k, n - x))
+                                  for x in (lo, hi))
+                memo[k, n] = ans
+            return memo[k, n]
+
+        return dp(k, n)
+```
 
 # 最短路径问题
 
@@ -776,7 +938,7 @@ for each vertex v in graph:
 
 # bfs
 ## 127. 单词接龙
-```py
+```python
 def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int:
      search_list=[]
      search_list.append((beginWord,0))
@@ -795,7 +957,7 @@ def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int
 ```
 
 双向BFS即是选择短的list去bfs
-```py
+```python
 def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int:
         if endWord not in wordList:
             return 0
@@ -859,7 +1021,8 @@ class Solution:
         return res[-1]
 ```
 
-# 回溯/dfs
+# 递归/回溯/dfs
+https://lyl0724.github.io/2020/01/25/1/ 
 ## 组合总数（可重复/不可重复，可多次存取/不可多次存取）
 39. 组合总和
 40. 组合总和 II
@@ -931,7 +1094,7 @@ def dfs(self,res,str,l,r,n):
 全排列+剪枝
 https://leetcode.cn/problems/generate-parentheses/
 ## 电话号码
-```py
+```python
 def letterCombinations(self, digits: str) -> List[str]:
         dic={2:"abc",3:"def",4:"ghi",5:"jkl",6:"mno",7:"pqrs",8:"tuv",9:"wxyz"}
         if len(digits)==0:
@@ -943,6 +1106,20 @@ def letterCombinations(self, digits: str) -> List[str]:
 
 ```
 https://leetcode.cn/problems/letter-combinations-of-a-phone-number/
+
+## 82. 删除排序链表中的重复元素 II
+```python
+class Solution(object):
+    def deleteDuplicates(self, head):
+        if head is None or head.next is None: return head
+        if head.val == head.next.val:
+            while head.next and head.val == head.next.val:
+                head = head.next
+            head = self.deleteDuplicates(head.next)
+        else:
+            head.next = self.deleteDuplicates(head.next)
+        return head
+```
 
 # 智力题
 ## N个小球里找次品，天平最少秤几次
@@ -964,6 +1141,13 @@ E(N_k)=\frac{1}{p}+\frac{1}{p^2}+\dots+\frac{1}{p^{k-1}}+\frac{1}{p^{k}}\\
 $$
 ## n双鞋，能随机匹配每一双的概率
 P(n,n)*2^n/P(2n,2n)
+## 是否有重复子串
+return s in (s+s)[1:-1]
+
+假设母串S是由子串s重复N次而成， 则 S+S则有子串s重复2N次， 那么现在有： S=Ns， S+S=2Ns， 其中N>=2。 如果条件成立， S+S=2Ns, 掐头去尾破坏2个s，S+S中还包含2*（N-1）s, 又因为N>=2, 因此S在(S+S)[1:-1]中必出现一次以上
+## rand 问题
+(randX() - 1)*Y + randY() 可以等概率的生成[1, X * Y]范围的随机数
+
 # 分治
 ## 寻找两个正序数组的中位数
 4. 寻找两个正序数组的中位数
@@ -973,21 +1157,21 @@ P(n,n)*2^n/P(2n,2n)
 我们分别找第 (m+n+1) / 2 个，和 (m+n+2) / 2 个，然后求其平均值即可，这对奇偶数均适用。
 ```python
 def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
-        def findKthElement(arr1,arr2,k):
+        def findKthElement(arr1,arr2,k): # 找第k小/大的元素
             len1,len2 = len(arr1),len(arr2)
-            if len1 > len2:
-                return findKthElement(arr2,arr1,k)
             if not arr1:
                 return arr2[k-1]
+            if not arr2:
+                return arr1[k-1]
             if k == 1:
                 return min(arr1[0],arr2[0])
-            i,j = min(k//2,len1)-1,min(k//2,len2)-1
+            i,j = min(k//2,len1)-1,min(k//2,len2)-1 # 每次取k/2处的两个进行比较
             if arr1[i] > arr2[j]:
-                return findKthElement(arr1,arr2[j+1:],k-j-1)
+                return findKthElement(arr1,arr2[j+1:],k-j-1) # k要减去抛弃的数组的长度
             else:
                 return findKthElement(arr1[i+1:],arr2,k-i-1)
         l1,l2 = len(nums1),len(nums2)
-        left,right = (l1+l2+1)//2,(l1+l2+2)//2
+        left,right = (l1+l2+1)//2,(l1+l2+2)//2 # 一次性包括了奇偶两种情况
         return (findKthElement(nums1,nums2,left)+findKthElement(nums1,nums2,right))/2
 ```
 https://leetcode.cn/problems/median-of-two-sorted-arrays/
@@ -996,7 +1180,7 @@ https://leetcode.cn/problems/median-of-two-sorted-arrays/
 23. 合并K个升序链表
 
 分治+递归合并，递归合并两个链表，分治分别合并。
-```py
+```python
 def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
         n = len(lists)
 
@@ -1023,79 +1207,27 @@ def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
 
 https://leetcode.cn/problems/merge-k-sorted-lists/
 
+## 寻找峰值
+规律一：如果nums[i] > nums[i+1]，则在i之前一定存在峰值元素
 
-# 链表
-## 链表排序
-```python
-# 快排思想，把小于基准值的放在左边，大于基准值的放在右边，基准值放在中间
-def sortList(head):
-    pre=ListNode()
-    pre.next=head
-    def sort(head,end):
-        if head==None or  head.next==end or head.next.next==end:
-            return head
-        temp=ListNode()
-        temp1=temp
-        p=head
-        temp1.next=p.next
-        p.next=p.next.next
-        temp1=temp1.next
-        temp1.next=None
-        while p.next!=end:
-            if p.next.val<temp1.val:
-                t,temp.next,p.next=temp.next,p.next,p.next.next
-                temp.next.next=t
-            else:
-                p=p.next
-        temp1.next,head.next=head.next,temp.next
-        sort(head,temp1)
-        sort(temp1,end)
-        return head.next
-    sort(pre,None)
-    return pre.next
-```
-# 是否有重复子串
-return s in (s+s)[1:-1]
+规律二：如果nums[i] < nums[i+1]，则在i+1之后一定存在峰值元素
 
-假设母串S是由子串s重复N次而成， 则 S+S则有子串s重复2N次， 那么现在有： S=Ns， S+S=2Ns， 其中N>=2。 如果条件成立， S+S=2Ns, 掐头去尾破坏2个s，S+S中还包含2*（N-1）s, 又因为N>=2, 因此S在(S+S)[1:-1]中必出现一次以上
-
-# 76. 最小覆盖子串
-采用类似滑动窗口的思路，即用两个指针表示窗口左端left和右端right。 向右移动right，保证left与right之间的字符串足够包含需要包含的所有字符， 而在保证字符串能够包含所有需要的字符条件下，向右移动left，保证left的位置对应为需要的字符，这样的 窗口才有可能最短，此时只需要判断当期窗口的长度是不是目前来说最短的，决定要不要更新minL和minR（这两个 变量用于记录可能的最短窗口的端点）
-
-搞清楚指针移动的规则之后，我们需要解决几个问题，就是怎么确定当前窗口包含所有需要的字符，以及怎么确定left的 位置对应的是需要的字符。 这里我们用一个字典mem保存目标字符串t中所含字符及其对应的频数。比如t="ABAc",那么字典mem={"A":2,"B":1,"c":1}, 只要我们在向右移动right的时候，碰到t中的一个字符，对应字典的计数就减一，那么当字典这些元素的值都不大于0的时候， 我们的窗口里面就包含了所有需要的字符；但判断字典这些元素的值都不大于0并不能在O(1)时间内实现，因此我们要用一个变量 来记录我们遍历过字符数目，记为t_len，当我们遍历s的时候，碰到字典中存在的字符且对应频数大于0，就说明我们还没有找到 足够的字符，那么就要继续向右移动right，此时t_len-=1；直到t_len变为0，就说明此时已经找到足够的字符保证窗口符合要求了。
-
-所以接下来就是移动left。我们需要移动left，直到找到目标字符串中的字符，同时又希望窗口尽可能短，因此我们就希望找到的 left使得窗口的开头就是要求的字符串中的字符，同时整个窗口含有所有需要的字符数量。注意到，前面我们更新字典的时候， 比如字符"A",如果我们窗口里面有10个A，而目标字符串中有5个A，那此时字典中A对应的计数就是-5，那么我要收缩窗口又要保证 窗口能够包含所需的字符，那么我们就要在收缩窗口的时候增加对应字符在字典的计数，直到我们找到某个位置的字符A，此时字典中 的计数为0，就不可以再收缩了（如果此时继续移动left，那么之后的窗口就不可能含有A这个字符了），此时窗口为可能的最小窗口，比较 更新记录即可。
+导数异号且连续必有峰值
 ```python
 class Solution:
-    def minWindow(self, s: str, t: str) -> str:
-        char_count=defaultdict(int)
-        for char in t:
-            char_count[char]+=1
-        t_len=len(t)  # 统计当前区间包含t中字母的个数
-        min_left,min_right=0,len(s)
-        left=0
-        res=''
-        for right,char in enumerate(s):
-            if char_count[char]>0:
-                t_len-=1
-            char_count[char]-=1
-            if t_len==0:
-                while char_count[s[left]]<0:
-                    char_count[s[left]]+=1
-                    left+=1
-                if right-left<min_right-min_left:
-                    min_left,min_right = left,right
-                    res=s[min_left:right+1]
-                char_count[s[left]]+=1
-                t_len+=1
-                left+=1
-        return res
+    def findPeakElement(self, nums: List[int]) -> int:
+        left,right=0,len(nums)-1
+        while left<right:
+            mid=(left+right)//2
+            if nums[mid]>nums[mid+1]:
+                right=mid
+            else:
+                left=mid+1
+        return left
 ```
 
-# rand 问题
-(randX() - 1)*Y + randY() 可以等概率的生成[1, X * Y]范围的随机数
 
-# 最长上升子序列
+## 最长上升子序列 二分/dp
 ```python
 #
 # retrun the longest increasing subsequence
@@ -1112,7 +1244,7 @@ class Solution:
         dp = [1] * len(arr)
         for i in range(1, len(arr)):
             for j in range(i):
-                if arr[i] > arr[j]:
+                if arr[i] > arr[j]: #依次找比前面大的数，再加上去后和现在最长相比
                     dp[i] = dp[j] + 1
         
         ansLen = max(dp)
@@ -1177,7 +1309,41 @@ class Solution:
                 
         return ansVec
 ```
-# 找环形链表的入口点
+
+# 链表
+## 链表的倒数第 N 个结点
+先让快指针走N步，再快慢一起走，快走到头则慢在倒数第N个结点处
+
+## 链表排序
+```python
+# 快排思想，把小于基准值的放在左边，大于基准值的放在右边，基准值放在中间
+def sortList(head):
+    pre=ListNode()
+    pre.next=head
+    def sort(head,end):
+        if head==None or  head.next==end or head.next.next==end:
+            return head
+        temp=ListNode()
+        temp1=temp
+        p=head
+        temp1.next=p.next
+        p.next=p.next.next
+        temp1=temp1.next
+        temp1.next=None
+        while p.next!=end:
+            if p.next.val<temp1.val:
+                t,temp.next,p.next=temp.next,p.next,p.next.next
+                temp.next.next=t
+            else:
+                p=p.next
+        temp1.next,head.next=head.next,temp.next
+        sort(head,temp1)
+        sort(temp1,end)
+        return head.next
+    sort(pre,None)
+    return pre.next
+```
+## 找环形链表的入口点
 
 首先，可以使用快慢指针找环
 
@@ -1202,7 +1368,56 @@ class Solution:
                 return slow
         return None
 ```
-# 两数之和
+
+# 滑动窗口
+## 76. 最小覆盖子串
+采用类似滑动窗口的思路，即用两个指针表示窗口左端left和右端right。 向右移动right，保证left与right之间的字符串足够包含需要包含的所有字符， 而在保证字符串能够包含所有需要的字符条件下，向右移动left，保证left的位置对应为需要的字符，这样的 窗口才有可能最短，此时只需要判断当期窗口的长度是不是目前来说最短的，决定要不要更新minL和minR（这两个 变量用于记录可能的最短窗口的端点）
+
+搞清楚指针移动的规则之后，我们需要解决几个问题，就是怎么确定当前窗口包含所有需要的字符，以及怎么确定left的 位置对应的是需要的字符。 这里我们用一个字典mem保存目标字符串t中所含字符及其对应的频数。比如t="ABAc",那么字典mem={"A":2,"B":1,"c":1}, 只要我们在向右移动right的时候，碰到t中的一个字符，对应字典的计数就减一，那么当字典这些元素的值都不大于0的时候， 我们的窗口里面就包含了所有需要的字符；但判断字典这些元素的值都不大于0并不能在O(1)时间内实现，因此我们要用一个变量 来记录我们遍历过字符数目，记为t_len，当我们遍历s的时候，碰到字典中存在的字符且对应频数大于0，就说明我们还没有找到 足够的字符，那么就要继续向右移动right，此时t_len-=1；直到t_len变为0，就说明此时已经找到足够的字符保证窗口符合要求了。
+
+所以接下来就是移动left。我们需要移动left，直到找到目标字符串中的字符，同时又希望窗口尽可能短，因此我们就希望找到的 left使得窗口的开头就是要求的字符串中的字符，同时整个窗口含有所有需要的字符数量。注意到，前面我们更新字典的时候， 比如字符"A",如果我们窗口里面有10个A，而目标字符串中有5个A，那此时字典中A对应的计数就是-5，那么我要收缩窗口又要保证 窗口能够包含所需的字符，那么我们就要在收缩窗口的时候增加对应字符在字典的计数，直到我们找到某个位置的字符A，此时字典中 的计数为0，就不可以再收缩了（如果此时继续移动left，那么之后的窗口就不可能含有A这个字符了），此时窗口为可能的最小窗口，比较 更新记录即可。
+```python
+class Solution:
+    def minWindow(self, s: str, t: str) -> str:
+        char_count=defaultdict(int)
+        for char in t:
+            char_count[char]+=1
+        t_len=len(t)  # 统计当前区间包含t中字母的个数
+        min_left,min_right=0,len(s)
+        left=0
+        res=''
+        for right,char in enumerate(s):
+            if char_count[char]>0:
+                t_len-=1
+            char_count[char]-=1
+            if t_len==0:
+                while char_count[s[left]]<0:
+                    char_count[s[left]]+=1
+                    left+=1
+                if right-left<min_right-min_left:
+                    min_left,min_right = left,right
+                    res=s[min_left:right+1]
+                char_count[s[left]]+=1
+                t_len+=1
+                left+=1
+        return res
+```
+## 滑动窗口最大值
+```python
+# 维护窗口，向右移动时左侧超出窗口的值弹出，因为需要的是窗口内的最大值，所以只要保证窗口内的值是递减的即可，小于新加入的值全部弹出。最左端即为窗口最大值 
+class Solution(object):
+    def maxSlidingWindow(self, nums, k):
+        win, ret = [], []
+        for i, v in enumerate(nums):
+            if i >= k and win[0] <= i - k: win.pop(0)
+            while win and nums[win[-1]] <= v: win.pop()
+            win.append(i)
+            if i >= k - 1: ret.append(nums[win[0]]) # 只有走到窗口边缘时才能加入ret
+        return ret
+```
+
+# 双指针
+## 两数之和
 ```python
 #先排序再双指针
 class Solution:
@@ -1234,6 +1449,9 @@ class Solution:
             hashmap[num] = index
         return None
 ```
+
+3数之和也可以用双指针，先固定一个再当成2数
+
 # 接雨水
 ```python
 class Solution:
@@ -1330,34 +1548,8 @@ public:
     }
 };
 ```
-
-
-# 单调队列
-滑动窗口最大值
-
-维护窗口，向右移动时左侧超出窗口的值弹出，因为需要的是窗口内的最大值，所以只要保证窗口内的值是递减的即可，小于新加入的值全部弹出。最左端即为窗口最大值。
-```python
-class Solution(object):
-    def maxSlidingWindow(self, nums, k):
-        win, ret = [], []
-        for i, v in enumerate(nums):
-            if i >= k and win[0] <= i - k: win.pop(0)
-            while win and nums[win[-1]] <= v: win.pop()
-            win.append(i)
-            if i >= k - 1: ret.append(nums[win[0]])
-        return ret
-```
-
-
-
-
-
-
-
-
-
 # 最长公共前缀
-```py
+```python
 def longestCommonPrefix(self, strs):
         if not strs: return ""
         s1 = min(strs)
@@ -1380,7 +1572,7 @@ def longestCommonPrefix(self, strs):
 ```
 
 # 无重复字符的最长子串
-```py
+```python
 def lengthOfLongestSubstring(self, s: str) -> int:
     st = {}
     i, ans = 0, 0
@@ -1391,11 +1583,6 @@ def lengthOfLongestSubstring(self, s: str) -> int:
         st[s[j]] = j + 1 #记录每一个字符最后出现的位置
     return ans
 ```
-
-# 递归
-https://lyl0724.github.io/2020/01/25/1/ 
-
-
 # 基于比较操作的排序算法平均时间复杂度的下界为O(n log n)，最坏情况下为O(n^2)，空间复杂度为O(n)。
 
 # 前中后缀转换 
@@ -1426,15 +1613,15 @@ https://lyl0724.github.io/2020/01/25/1/
 (4) 遇到运算符时，比较其与S1栈顶运算符的优先级：
 
     (4-1) 如果S1为空，或栈顶运算符为右括号“)”，则直接将此运算符入栈
-
+    
     (4-2) 否则，若优先级比栈顶运算符的较高或相等，也将运算符压入S1
-
+    
     (4-3) 否则，将S1栈顶的运算符弹出并压入到S2中，再次转到(4-1)与S1中新的栈顶运算符相比较；
 
 (5) 遇到括号时：
 
     (5-1) 如果是右括号“)”，则直接压入S1；
-
+    
     (5-2)如果是左括号“(”，则依次弹出S1栈顶的运算符，并压入S2，直到遇到右括号为止，此时将这一对括号丢弃；
 
 (6) 重复步骤(2)至(5)，直到表达式的最左边；
@@ -1542,3 +1729,5 @@ class Solution:
         
         return int(x0)
 ```
+# 232. 用栈实现队列
+两个栈。一个负责出一个负责入
