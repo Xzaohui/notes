@@ -5,7 +5,7 @@ appendleft,extendleft
 ## itertools.groupby
 groupby支持两个参数，第一个参数是需要迭代的对象，第二个函数key代表分组依据，如果为none则表示使用迭代对象中的元素作为分组依据
 
-[(ch, list(seq)) for ch, seq in groupby(text)]
+[(ch, list(seq)) for ch, seq in groupby(text,key=None)]
 ## collections.Counter
 该方法用于统计某序列中每个元素出现的次数，以键值对的方式存在字典中。
 
@@ -182,7 +182,25 @@ def __lt__(self, other):
 ListNode.__lt__ = __lt__
 ```
 让类也能排序做对比建堆 https://leetcode.cn/problems/merge-k-sorted-lists/
+## join
+join()：将序列（也就是字符串、元组、列表、字典）中的元素以指定的字符连接生成一个新的字符串。
 
+''.join(map(str,result)) 将result转换为字符串，再拼接。
+
+1.   移掉 K 位数字
+```python
+class Solution:
+    def removeKdigits(self, num: str, k: int) -> str:
+        stack = []
+        for d in num:
+            while stack and k and stack[-1] > d: #保证栈的有序递增。
+                stack.pop()
+                k -= 1
+            stack.append(d)
+        if k > 0:
+            stack = stack[:-k]
+        return ''.join(stack).lstrip('0') or "0" #join前可选分词的字符，lstrip('0')去掉前面的0
+```
 # 树
 
 ## 前中后序
@@ -539,7 +557,44 @@ Trie 树只是不适合精确匹配查找，这种问题更适合用散列表或
 
 Trie 树的这个应用可以扩展到更加广泛的一个应用上，就是自动输入补全，比如输入法自动补全功能、IDE 代码编辑器自动补全功能、浏览器网址输入的自动补全功能等等。
 
-
+### 
+```python
+from collections import defaultdict
+class Trie:
+    def __init__(self):  # Trie树结构，非常关键
+        self.children = defaultdict(Trie)
+        self.word = "" # 单词结束标志，表明是一个单词
+    def insert(self, word):
+        cur = self
+        for c in word:
+            cur = cur.children[c]
+        cur.is_word = True
+        cur.word = word
+class Solution:
+    def findWords(self, board: List[List[str]], words: List[str]) -> List[str]:
+        trie = Trie()
+        for word in words:
+            trie.insert(word)
+        def dfs(now, i1, j1):
+            if board[i1][j1] not in now.children: # 如果当前字符不在当前Trie树中，则表明不是单词前缀
+                return
+            ch = board[i1][j1]
+            now = now.children[ch]
+            if now.word != "": # 如果是单词，则添加到结果中
+                ans.append(now.word)
+                now.word = ""   # 将单词标志置为空，避免重复添加
+            board[i1][j1] = "#" # 将当前位置标记为已访问
+            for i2, j2 in [(i1 + 1, j1), (i1 - 1, j1), (i1, j1 + 1), (i1, j1 - 1)]:
+                if 0 <= i2 < m and 0 <= j2 < n:
+                    dfs(now, i2, j2)
+            board[i1][j1] = ch
+        ans = []
+        m, n = len(board), len(board[0])
+        for i in range(m):
+            for j in range(n):
+                dfs(trie, i, j)
+        return ans
+```
 ## 440. 字典序的第K小数字
 ```python
 # 本质是一个10叉树的先序遍历,找到按照先序遍历的第k个节点
@@ -597,8 +652,47 @@ class Solution:
                 candyVec[j] = max(candyVec[j], candyVec[j + 1] + 1)
         return sum(candyVec)
 ```
+## 1014. 最佳观光组合
+既要求最大收益（景点得分最大），又要求最小损失（距离最小），损失和位置i挂钩。每次保持当前分数最大，找后序有损失的得分最大的情况。
+```python
+class Solution:
+    def maxScoreSightseeingPair(self, A: List[int]) -> int:
+        left, res = A[0], -1
+        for j in range(1, len(A)):
+            res = max(res, left + A[j] - j)
+            left = max(left, A[j] + j)
+        return res
+```
 
 # dp
+
+## 正则表达式匹配
+https://leetcode.cn/problems/regular-expression-matching/solution/zheng-ze-biao-da-shi-pi-pei-by-leetcode-solution/
+```python
+class Solution:
+    def isMatch(self, s: str, p: str) -> bool:
+        m, n = len(s), len(p)
+
+        def matches(i: int, j: int) -> bool: # .和相等返回True
+            if i == 0:
+                return False
+            if p[j - 1] == '.':
+                return True
+            return s[i - 1] == p[j - 1]
+
+        f = [[False] * (n + 1) for _ in range(m + 1)]
+        f[0][0] = True
+        for i in range(m + 1):
+            for j in range(1, n + 1):
+                if p[j - 1] == '*':
+                    f[i][j] |= f[i][j - 2] # *前面的字符匹配0次
+                    if matches(i, j - 1):
+                        f[i][j] |= f[i - 1][j] # *往前面匹配1次
+                else:
+                    if matches(i, j):
+                        f[i][j] |= f[i - 1][j - 1]
+        return f[m][n]
+```
 
 ## 编辑距离
 ```python
@@ -654,7 +748,7 @@ class Solution:
 ```
 ## 跳表问题
 
-45. 跳跃游戏 II
+1.  跳跃游戏 II
 ```python
 for i in range(len(nums)-2,-1,-1):
     jump[i]=min([jump[j] for j in range(i+1,min(i+nums[i]+1,len(nums)))])+1
@@ -712,6 +806,38 @@ def maxProfit(self, k: int, prices: List[int]) -> int:
 完全背包：顺序遍历。
 
 分割 等和子集、最相似子集：背包大小为和的一半。
+```python
+# 二维dp，可以根据dp值来判断是否能够放入背包，回溯出选取的物品。此时是否到序遍历没关系，需要排序。
+def canPartition(nums):
+    target=sum(nums)
+    if target&1:
+        return False
+    else:
+        target//=2
+    nums.sort()
+    dp=[[0]*(target+1) for _ in range(len(nums)+1)]
+    for i in range(len(nums)+1):
+        dp[i][0]=1
+    for i in range(1,len(nums)+1):
+        for j in range(1,target+1):
+            if nums[i-1]<=j and max([d[j-nums[i-1]] for d in dp[:i]])==1:
+                dp[i][j]=1
+    return max([d[-1] for d in dp])
+# 一维dp，必须后序遍历背包大小，不需要排序
+def canPartition(nums):
+    target=sum(nums)
+    if target&1:
+        return False
+    else:
+        target//=2
+    dp=[0]*(target+1)
+    dp[0]=1
+    for n in nums:
+        for i in range(target,0,-1):
+            if n<=i and dp[i-n]==1:
+                dp[i]=1
+    return True if dp[target]==1 else False
+```
 
 目标和，有+-符号组合：转换为letf-right=traget，left+right=sum，left=(sum+target)/2。再转化为01背包。
 
@@ -1120,7 +1246,155 @@ class Solution(object):
             head.next = self.deleteDuplicates(head.next)
         return head
 ```
+## 698. 划分为k个相等的子集
+```python
+class Solution:
+    def canPartitionKSubsets(self, nums: List[int], k: int) -> bool:
+        target=sum(nums)
+        if target%k!=0:
+            return False
+        else:
+            target//=k
+        nums.sort(reverse=True) # 让 nums[] 内的元素递减排序，先让值大的元素选择桶，这样可以增加剪枝的命中率，从而降低回溯的概率
+        if nums[0]>target:
+            return False
+        def dfs(basket,cur): # 从物品角度，看放在哪个桶里
+            if cur==len(nums):
+                return True
+            for i in range(k):
+                if basket[i]+nums[cur]<=target:
+                    if i==0 or basket[i]!=basket[i-1]:  #去重剪枝，当前桶不能与前一桶相同，去掉重复情况
+                        basket[i]+=nums[cur]
+                        if dfs(basket,cur+1):
+                            return True
+                        basket[i]-=nums[cur]
+            return False
+        return dfs([0]*k,0)
 
+
+class Solution:
+    '''记忆化搜索，2进制state记录物品状态，无需used数组'''
+    
+    def canPartitionKSubsets(self, nums: List[int], k: int) -> bool:
+        @cache # 在一个递归函数上应用 cache 装饰器会提升速度，建议都带上，但是参数不能是数组
+        def dfs(state, summ): # state记录物品使用状态，summ是桶的和，站在桶的角度依次选择物品。
+            if state == (1<<n) - 1:         # 所有整数均已划分，结束递归，并返回True
+                return True
+            for j in range(n):
+                if summ + nums[j] > target: # nums已升序排列，当前数字不行，后续肯定也不行
+                    break
+                if state & (1<<j) == 0:             # nums[i]暂未被划分
+                    next_state = state + (1<<j)     # 划分nums[i]
+                    if dfs(next_state, (summ+nums[j]) % target):    # 划分nums[i]能形成有效方案，则返回True
+                        return True                             # 只需要一个数字就能判断是否分成，未成功划分会break，成功划分会%后得0
+            return False
+        
+        total = sum(nums)
+        if total % k != 0:
+            return False
+        n = len(nums)
+        target = total // k     # 目标非空子集的和
+        nums.sort()             # 升序排列
+        if nums[-1] > target:   # 最大值超过目标子集和，无法划分
+            return False
+        return dfs(0, 0)
+```
+## 分割回文串
+```python
+class Solution:
+    def partition(self, s: str) -> List[List[str]]:
+        if len(s) == 0:
+            return [[]]
+        if len(s) == 1:
+            return [[s]]
+        tmp = []
+        for i in range(1,len(s)+1):
+            left = s[:i]
+            right = s[i:]
+            if left ==left[::-1]: #如果左侧不是回文的，则舍弃这种尝试
+                right = self.partition(right) # 返回的是一个二维数组，每个二维数组是一个回文串的分割结果
+                for i in range(len(right)):
+                    tmp.append([left]+right[i])
+        return tmp
+
+# 手动分割后递归，主要思想是一致的。
+class Solution:
+    def __init__(self):
+        self.paths = []
+        self.path = []
+
+    def partition(self, s: str) -> List[List[str]]:
+        '''
+        递归用于纵向遍历
+        for循环用于横向遍历
+        当切割线迭代至字符串末尾，说明找到一种方法
+        类似组合问题，为了不重复切割同一位置，需要start_index来做标记下一轮递归的起始位置(切割线)
+        '''
+        self.path.clear()
+        self.paths.clear()
+        self.backtracking(s, 0)
+        return self.paths
+
+    def backtracking(self, s: str, start_index: int) -> None:
+        # Base Case
+        if start_index >= len(s):
+            self.paths.append(self.path[:])
+            return
+        
+        # 单层递归逻辑
+        for i in range(start_index, len(s)):
+            # 此次比其他组合题目多了一步判断：
+            # 判断被截取的这一段子串([start_index, i])是否为回文串
+            temp = s[start_index:i+1]
+            if temp == temp[::-1]:  # 若反序和正序相同，意味着这是回文串
+                self.path.append(temp)
+                self.backtracking(s, i+1)   # 递归纵向遍历：从下一处进行切割，判断其余是否仍为回文串
+                self.path.pop()
+```
+## 79. 单词搜索
+```python
+class Solution:
+    def exist(self, board: List[List[str]], word: str) -> bool:
+        n = len(board)
+        m = len(board[0])
+        len_str = len(word)
+
+        def backtracking(i ,j, p):
+            if p == len_str: return True
+            if i < 0 or i >= n or j < 0 or j >= m: return False
+            if word[p] == board[i][j]:
+                board[i][j] = '0'
+                if backtracking(i-1, j, p+1) or backtracking(i+1, j, p+1) or backtracking(i, j-1, p+1) or backtracking(i, j+1, p+1): return True
+                board[i][j] = word[p]
+            return False
+
+        for i in range(n):
+            for j in range(m):
+                if board[i][j] == word[0]:
+                    if backtracking(i, j, 0): return True
+
+        return False
+```
+## 24点
+```python
+class Solution:
+    def judgePoint24(self, cards: List[int]) -> bool:
+        if len(cards) == 1:
+            return math.isclose(cards[0], 24)
+        
+        for _ in range(len(cards)):
+            a = cards.pop(0) # 摸一张 (queue 操作)
+            for _ in range(len(cards)):
+                b = cards.pop(0) # 再摸一张 (queue 操作)
+                for value in [a + b, a - b, a * b, b and a / b]: # 算一下
+                    cards.append(value) # 记下来 (stack 操作)
+                    if self.judgePoint24(cards):
+                        return True
+                    cards.pop() # (stack 操作)
+                cards.append(b) # (queue 操作)
+            cards.append(a) # (queue 操作)
+        return False
+```
 # 智力题
 ## N个小球里找次品，天平最少秤几次
 情况1：次品的轻重已知
@@ -1149,9 +1423,7 @@ return s in (s+s)[1:-1]
 (randX() - 1)*Y + randY() 可以等概率的生成[1, X * Y]范围的随机数
 
 # 分治
-## 寻找两个正序数组的中位数
-4. 寻找两个正序数组的中位数
-
+## 4. 寻找两个正序数组的中位数
 这个题目可以归结到寻找第k小(大)元素问题，思路可以总结如下：取两个数组中的第k/2个元素进行比较，如果数组1的元素小于数组2的元素，则说明数组1中的前k/2个元素不可能成为第k个元素的候选，所以将数组1中的前k/2个元素去掉，组成新数组和数组2求第k-k/2小的元素，因为我们把前k/2个元素去掉了，所以相应的k值也应该减小。另外就是注意处理一些边界条件问题，比如某一个数组可能为空或者k为1的情况。
 
 我们分别找第 (m+n+1) / 2 个，和 (m+n+2) / 2 个，然后求其平均值即可，这对奇偶数均适用。
@@ -1310,6 +1582,85 @@ class Solution:
         return ansVec
 ```
 
+## 410. 分割数组的最大值
+结果必定落在【max（nums）， sum（nums）】这个区间内，因为左端点对应每个单独的元素构成一个子数组，右端点对应所有元素构成一个子数组。
+
+然后可以利用二分查找法逐步缩小区间范围，当区间长度为1时，即找到了最终答案。
+```python
+class Solution(object):
+    def splitArray(self, nums, m):
+        # max(nums), sum(nums)
+        if len(nums) == m:
+            return max(nums)
+        lo, hi = max(nums), sum(nums)
+        while(lo < hi):
+            mid = (lo + hi) // 2 # 最大和
+            #------以下在模拟划分子数组的过程
+            temp, cnt = 0, 1
+            for num in nums:
+                temp += num
+                # cnt += 1
+                if temp > mid:#说明当前这个子数组的和已经超过了允许的最大值mid，需要把当前元素放在下一个子数组里
+                    temp = num
+                    cnt += 1
+            # print temp, cnt, mid
+            #------以上在模拟划分子数组的过程
+            if cnt > m: #说明分出了比要求多的子数组，多切了几刀，说明mid应该加大，这样能使子数组的个数减少
+                lo = mid + 1
+            elif cnt <= m:
+                hi = mid
+        return lo
+```
+## 81. 搜索旋转排序数组 II
+保证是有一半有序，分两种情况，一种是左半边有序，另一种是右半边有序，再分别在两边继续二分。
+```python
+class Solution:
+    def search(self, nums: List[int], target: int) -> bool:
+        def sea(left,right,target):
+            if left>right:
+                return -1
+            while left<right and nums[left]==nums[left+1]:  # 避免重复的情况对结果的影响
+                left+=1
+            while left<right and nums[right]==nums[right-1]:
+                right-=1
+            mid=(left+right)//2
+            if target==nums[mid]:
+                return mid
+            if target==nums[right]:
+                return right
+            if target==nums[left]:
+                return left
+            
+            if nums[mid]>=nums[left]:
+                if nums[mid]>target and target>nums[left]:
+                    return sea(left,mid-1,target)
+                else:
+                    return sea(mid+1,right,target)
+            else:
+                if target>nums[mid] and target<nums[right]:
+                    return sea(mid+1,right,target)
+                else:
+                    return sea(left,mid-1,target)
+        if sea(0,len(nums)-1,target)==-1:
+            return False
+        else:
+            return True
+```
+## 395. 至少有 K 个重复字符的最长子串
+```python
+class Solution:
+    def longestSubstring(self, s: str, k: int) -> int:
+        if not s:
+            return 0 # 如果s为空字符长，那么返回长度0
+        for c in set(s):
+            if s.count(c)<k: # 只要有一个字符不满足要求，那么整个字符串就不满足要求
+                s = s.replace(c,'#') # 可以不用replace直接分割。
+            if '#' in s:
+                return max([self.longestSubstring(t,k) for t in s.split('#')])
+            # 如果字符串中存在数量小于k的字符，那么该字符串必不合格，按照个数小于k的字符划分字符串，对划分的字符串继续递归判断
+            
+        return len(s) # 如果s中所有字符个数都大于k，返回s的长度
+```
 # 链表
 ## 链表的倒数第 N 个结点
 先让快指针走N步，再快慢一起走，快走到头则慢在倒数第N个结点处
@@ -1342,6 +1693,24 @@ def sortList(head):
         return head.next
     sort(pre,None)
     return pre.next
+```
+
+## k个一组翻转链表
+```python
+class Solution:
+    def reverseKGroup(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:
+        tnode=head
+        for _ in range(k):
+            if tnode is not None:
+                tnode=tnode.next
+            else:
+                return head
+        tnode=head
+        pre=None
+        for _ in range(k):
+            tnode.next,pre,tnode=pre,tnode,tnode.next
+        head.next=self.reverseKGroup(tnode,k) # 将剩下的链表翻转，返回头结点
+        return pre
 ```
 ## 找环形链表的入口点
 
@@ -1415,7 +1784,49 @@ class Solution(object):
             if i >= k - 1: ret.append(nums[win[0]]) # 只有走到窗口边缘时才能加入ret
         return ret
 ```
+## 209. 长度最小的子数组
+```python
+class Solution:
+    def minSubArrayLen(self, s: int, nums: List[int]) -> int:
+        # 定义一个无限大的数
+        res = float("inf")
+        Sum = 0
+        index = 0
+        for i in range(len(nums)):
+            Sum += nums[i]
+            while Sum >= s: # 当前累计和大于s时，开始移动左索引
+                res = min(res, i-index+1)
+                Sum -= nums[index]
+                index += 1
+        return 0 if res==float("inf") else res
 
+```
+862. 和至少为 K 的最短子数组
+
+存在负数，完全不是一类题。
+
+1. 当preSum[x2] <= preSum[x1]（其中x1 < x2）时，表明x1到x2之间的元素的和是负数或0，那么就是当preSum[xn] - preSum[x1] >= K则必然有preSum[xn] - preSum[x2] >= K，那么这个时候我们只计算xn - x2即可（x1到x2之间的元素可以全部跳过了，耶！），就不需要计算xn - x1了，因为后者一定是更大的，不满足我们要选最小的条件。
+
+2. 另一个角度，当preSum[x2] - preSum[x1] >= K时，x1就可以跳过了，为什么呢？因为x1到x2已经满足了大于K，再继续从x1开始向后再早，也不会再有比x2距离x1更近的了，毕竟我们要求的是最小的x2 - x1。
+
+```python
+class Solution:
+    def shortestSubarray(self, nums: List[int], k: int) -> int:
+        pre_sum=[0]*(len(nums)+1)
+        q=[]
+        res=len(nums)+1
+        for i in range(len(nums)):
+            pre_sum[i+1]=pre_sum[i]+nums[i]
+        for i in range(len(nums)+1):
+            while q and pre_sum[q[-1]]>=pre_sum[i]:
+                q.pop()
+            while q and pre_sum[i]-pre_sum[q[0]]>=k:
+                if i-q[0]<res:
+                    res=i-q[0]
+                q.pop(0)
+            q.append(i)
+        return res if res!=len(nums)+1 else -1
+```
 # 双指针
 ## 两数之和
 ```python
@@ -1462,7 +1873,7 @@ class Solution:
             left[i]=max(left[i-1],height[i-1])
         for i in range(len(height)-2,-1,-1):
             right[i]=max(right[i+1],height[i+1])
-        res=0
+        res=0                           # 一个维持右边最大，一个维持做边最大，最后计算当前位置最多能接多少水
         for i in range(len(height)):
             level=min(left[i],right[i])
             res+=max(0,level-height[i])
@@ -1489,6 +1900,38 @@ class Solution:
             h2 = max(h2,height[-i-1])
             ans = ans + h1 + h2 -height[i]
         return  ans - len(height)*h1
+
+# 二维接雨水
+# 最外围作为围栏入最小堆；
+# 出堆，当前值是围栏的最矮的一个，搜索最矮的围栏周围
+# 内部柱子有比最矮围栏还矮的，则可以灌水；更新内部的这个柱子高度（选择原来高度和最矮围栏高度最大的那一个），并将这个柱子作为新的一格围栏和原来围栏组成新的外围栏，入堆
+# 重复 2，3：
+class Solution:
+    def trapRainWater(self, heightMap: List[List[int]]) -> int:
+        m, n = len(heightMap), len(heightMap[0])
+        hp = []
+        visited = [[False for _ in range(n)] for _ in range(m)]
+        # 最外围围栏入堆
+        for i in range(m):
+            for j in range(n):
+                if i == 0 or j == 0 or i == m - 1 or j == n - 1:
+                    # 最小堆，保证最矮的围栏出堆
+                    heapq.heappush(hp, (heightMap[i][j], i, j))
+                    visited[i][j] = True
+        
+        ans = 0
+        while hp:
+            h, r, c = heapq.heappop(hp)
+            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= nr < m and 0 <= nc < n and not visited[nr][nc]:
+                    # 围栏比内部高，可以灌水
+                    if h > heightMap[nr][nc]:
+                        ans += h - heightMap[nr][nc]
+                    # 忽略当前围栏，在(nr, nc)处新建围栏
+                    visited[nr][nc] = True
+                    # 新的围栏入堆
+                    heapq.heappush(hp, (max(h, heightMap[nr][nc]), nr, nc))
+        return ans
 ```
 
 # 最长回文子序列
@@ -1731,3 +2174,33 @@ class Solution:
 ```
 # 232. 用栈实现队列
 两个栈。一个负责出一个负责入
+
+# 560. 和为 K 的子数组
+通过前缀和将数组改变成两数和问题，因为pre1-pre2=k，所以知道pre1可以直接由pre1-k查询pre2。注意字典里pre的数目
+```python
+class Solution:
+    def subarraySum(self, nums: List[int], k: int) -> int:
+        dic={0:1}
+        pre=0
+        res=0
+        for i in range(len(nums)):
+            pre+=nums[i]
+            res+=dic.get(pre-k,0)
+            dic[pre]=dic.get(pre,0)+1 # 必须在查询后面加入字典，避免k=0时重复查询。同时如果有多次可以+1
+        return res
+```
+
+# 179. 最大数
+字典排序
+```python
+class Solution:
+    def largestNumber(self, nums: List[int]) -> str:
+        s = ''
+        for i in range(len(nums)-1):
+            for j in range(i+1,len(nums)):
+                if str(nums[i])+str(nums[j]) < str(nums[j])+str(nums[i]):
+                    nums[i],nums[j] = nums[j],nums[i]
+        for x in (nums):
+            s += str(x)
+        return str(int(s))
+```
