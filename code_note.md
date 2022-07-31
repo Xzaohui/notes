@@ -6,6 +6,8 @@ appendleft,extendleft
 groupby支持两个参数，第一个参数是需要迭代的对象，第二个函数key代表分组依据，如果为none则表示使用迭代对象中的元素作为分组依据
 
 [(ch, list(seq)) for ch, seq in groupby(text,key=None)]
+
+seq只能访问一次，list后记录一下
 ## collections.Counter
 该方法用于统计某序列中每个元素出现的次数，以键值对的方式存在字典中。
 
@@ -57,8 +59,49 @@ class Solution:
         for i in range(k-1, -1, -1):
             result[i] = heapq.heappop(pri_que)[1]
         return result
+
+# 手动实现堆
+class Solution:
+    def findKthLargest(self, nums: List[int], k: int) -> int:
+        h=[0]
+        def heappush(num):
+            nonlocal h
+            h.append(num)
+            l=len(h)-1
+            while l>1:
+                if num<h[l//2]:
+                    t=h[l//2]
+                    h[l//2]=num
+                    h[l]=t
+                    l//=2
+                else:
+                    break
+        def heappop():
+            nonlocal h
+            h[1]=h[-1]
+            top=h[1]
+            h.pop()
+            l=1
+            while l*2<len(h):
+                left=h[l*2]
+                right=h[l*2+1] if l*2+1<len(h) else 99999
+                t=min(left,right)
+                tl=l*2 if left<right else l*2+1
+                if top>t:
+                    h[tl]=top
+                    h[l]=t
+                    l=tl
+                else:
+                    break
+        for i in range(len(nums)):
+            heappush(nums[i])
+            if len(h)>k+1:
+                heappop()
+        return h[1]
 ```
 前K个高频词 https://leetcode.cn/problems/top-k-frequent-elements/
+
+[215. 数组中的第K个最大元素](https://leetcode.cn/problems/kth-largest-element-in-an-array/)
 
 ## strip
 Python strip() 方法用于移除字符串头尾指定的字符（默认为空格或换行符）或字符序列。
@@ -94,14 +137,18 @@ finditer：返回string中所有相匹配的全部字串，返回形式为迭代
 rfind()：和find()功能相同，但查找方向从右侧开始
 
 rindex()：和index()功能相同，但查找方向从右侧开始
-## bisect
-使用 bisect 模块的方法之前，要求操作对象是 有序序列（升序，降序取负号）
+## bisect 二分查找
+
+使用 bisect 模块的方法之前，要求操作对象是 **有序序列**（升序，降序取负号）
 
 bisect 与 bisect_left，insort_left 的区别：当插入的元素和序列中的某一个元素相同时，该插入到该元素的前面（左边，left），还是后面（右边）；如果是查找，则返回该元素的位置还是该元素之后的位置。
 
 查找： bisect.bisect/bisect_left/bisect_right(array, item)
 
 插入： bisect.insort/insort_left/insort_right(array,item)
+
+#### [剑指 Offer 51. 数组中的逆序对](https://leetcode.cn/problems/shu-zu-zhong-de-ni-xu-dui-lcof/)
+
 ```python
 class Solution:
     def reversePairs(self, nums: List[int]) -> int:
@@ -174,7 +221,7 @@ class Solution:
 ```
 ## 类的运算符重载
 
-比较运算符（<，<=，>，> =，==和！=）可以通过为__ lt __ ，__ le __ ，__ gt __ ，__ ge __ ，__ eq__和__ne__魔术方法提供定义来重载，以比较类的对象。 
+比较运算符（<，<=，>，> =，==和！=）可以通过为__ lt __ ，__ le __ ，__ gt __ ，__ ge __ ，__ eq __ 和 __ ne __魔术方法提供定义来重载，以比较类的对象。 
 
 ```python
 def __lt__(self, other):
@@ -187,7 +234,8 @@ join()：将序列（也就是字符串、元组、列表、字典）中的元�
 
 ''.join(map(str,result)) 将result转换为字符串，再拼接。
 
-1.   移掉 K 位数字
+移掉 K 位数字
+
 ```python
 class Solution:
     def removeKdigits(self, num: str, k: int) -> str:
@@ -206,6 +254,7 @@ class Solution:
 ## 前中后序
 
 ### 递归
+
 访问和递归项的位置
 
 ### 迭代
@@ -236,6 +285,23 @@ class Solution:
             if node.left:
                 stack.append(node.left)
         return result
+
+class Solution:
+    def preorderTraversal(self, root: Optional[TreeNode]) -> List[int]:
+        if not root:
+            return []
+        stack = [root]
+        res=[]
+        while stack:
+            node = stack.pop()
+            if node:
+                if node.right: stack.append(node.right)
+                if node.left: stack.append(node.left)
+                stack.append(node) # 放回，留着后续遍历
+                stack.append(None) # 有None表示左右子树已入栈，可以开始计算高度/后续遍历访问
+            else:
+                res.append(stack.pop().val)
+        return res
         
 # 中序遍历-迭代-LC94_二叉树的中序遍历
 class Solution:
@@ -257,8 +323,25 @@ class Solution:
                 # 取栈顶元素右结点
                 cur = cur.right	
         return result
+
+class Solution:
+    def inorderTraversal(self, root: Optional[TreeNode]) -> List[int]:
+        if not root:
+            return []
+        stack = [root]
+        res=[]
+        while stack:
+            node = stack.pop()
+            if node:
+                if node.right: stack.append(node.right)
+                stack.append(node) # 放回，留着后续遍历
+                stack.append(None) # 有None表示左右子树已入栈，可以开始计算高度/后续遍历访问
+                if node.left: stack.append(node.left)
+            else:
+                res.append(stack.pop().val)
+        return res
         
-# 后序遍历-迭代-LC145_二叉树的后序遍历
+# 伪后序遍历，前序遍历的反转。
 class Solution:
     def postorderTraversal(self, root: TreeNode) -> List[int]:
         if not root:
@@ -277,6 +360,25 @@ class Solution:
                 stack.append(node.right)
         # 将最终的数组翻转
         return result[::-1]
+
+# 真后续遍历，先入栈，加入None标识，再依次pop
+
+class Solution:
+    def postorderTraversal(self, root: Optional[TreeNode]) -> List[int]:
+        if not root:
+            return []
+        stack = [root]
+        res=[]
+        while stack:
+            node = stack.pop()
+            if node:
+                stack.append(node) # 放回，留着后续遍历
+                stack.append(None) # 有None表示左右子树已入栈，可以开始计算高度/后续遍历访问
+                if node.right: stack.append(node.right)
+                if node.left: stack.append(node.left)
+            else:
+                res.append(stack.pop().val)
+        return res
 ```
 ## 层序遍历
 ```python
@@ -324,25 +426,6 @@ class Solution:
         return ans
 ```
 
-## 二叉树
-二叉树共父节点 https://leetcode.cn/problems/lowest-common-ancestor-of-a-binary-tree/comments/
-```python
-class Solution:
-    def lowestCommonAncestor(self, root: 'TreeNode', p: 'TreeNode', q: 'TreeNode') -> 'TreeNode':
-        if root==p or root==q or root==None:
-            return root
-        r=self.lowestCommonAncestor(root.right,p,q)
-        l=self.lowestCommonAncestor(root.left,p,q)
-        if r!=None and l!=None:
-            return root
-        elif r!=None:
-            return r
-        elif l!=None:
-            return l
-        else:
-            return None
-```
-
 ## 二叉搜索树
 
 中序遍历有序
@@ -351,7 +434,7 @@ class Solution:
 ```python
 def deleteNode(root, key):
     if not root: return None;
-    if root.val > key:
+    if root.val > key: # 向下找
         root.left = deleteNode(root.left, key)
     elif root.val < key:
         root.right = deleteNode(root.right, key)
@@ -378,8 +461,56 @@ class Solution:
         return valid(root,-inf,inf)
 ```
 
+240. 搜索二维矩阵 II
+
+从右上角/左下角开始，看作一颗二叉搜索树
+
 
 ## 平衡二叉树
+
+判断是否是平衡二叉树
+```python
+# 递归法
+class Solution:
+    def isBalanced(self, root: TreeNode) -> bool:
+        def deep(root):
+            if root==None:
+                return 0
+            r=deep(root.right)
+            l=deep(root.left)
+            if r==-1 or l==-1:
+                return -1
+            if abs(r-l)>1:
+                return -1
+            return max(r,l)+1
+        if deep(root)==-1:
+            return False
+        else:
+            return True
+# 迭代法
+class Solution:
+    def isBalanced(self, root: Optional[TreeNode]) -> bool:
+        if not root:
+            return True
+
+        height_map = {}
+        stack = [root]
+        while stack:
+            node = stack.pop()
+            if node:
+                stack.append(node) # 放回，留着后续遍历
+                stack.append(None) # 有None表示左右子树已入栈，可以开始计算高度/后续遍历访问
+                if node.left: stack.append(node.left)
+                if node.right: stack.append(node.right)
+            else:
+                real_node = stack.pop()
+                left, right = height_map.get(real_node.left, 0), height_map.get(real_node.right, 0) # 相当于后续遍历。
+                if abs(left - right) > 1:
+                    return False
+                height_map[real_node] = 1 + max(left, right)
+        return True
+```
+
 
 ```python
 # left _rotation
@@ -453,7 +584,19 @@ class Solution:
             return False
         return sametree(root,subRoot) or self.isSubtree(root.left,subRoot) or self.isSubtree(root.right,subRoot)
 ```
-
+## 617. 合并二叉树
+```python
+class Solution:
+    def mergeTrees(self, root1: TreeNode, root2: TreeNode) -> TreeNode:
+        if root1 is None:
+            return root2
+        if root2 is None:
+            return root1
+        root1.val+=root2.val
+        root1.left=self.mergeTrees(root1.left,root2.left)
+        root1.right=self.mergeTrees(root1.right,root2.right)
+        return root1
+```
 ## 101. 对称二叉树
 ```python
 class Solution:
@@ -557,13 +700,19 @@ Trie 树只是不适合精确匹配查找，这种问题更适合用散列表或
 
 Trie 树的这个应用可以扩展到更加广泛的一个应用上，就是自动输入补全，比如输入法自动补全功能、IDE 代码编辑器自动补全功能、浏览器网址输入的自动补全功能等等。
 
-### 
+### 单词搜索
+
+#### [212. 单词搜索 II](https://leetcode.cn/problems/word-search-ii/)
+
+单个单词搜索没必要用字典树，直接dfs
+
 ```python
 from collections import defaultdict
 class Trie:
     def __init__(self):  # Trie树结构，非常关键
         self.children = defaultdict(Trie)
         self.word = "" # 单词结束标志，表明是一个单词
+        self.is_word=False # 是否是一个单词
     def insert(self, word):
         cur = self
         for c in word:
@@ -640,6 +789,7 @@ class Solution:
 
 一次是从右到左遍历，只比较左边孩子评分比右边大的情况。
 
+成环的情况头部添加尾部，尾部添加头部。
 ```python
 class Solution:
     def candy(self, ratings: List[int]) -> int:
@@ -713,7 +863,8 @@ def minDistance(self, word1: str, word2: str) -> int:
                 else:
                     dp[i][j]=min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1])+1#左、上、左上的情况需要多变换一次
         return dp[-1][-1]
-# 变换cost不同，注意由谁变成谁
+
+# 变换cost不同，注意由谁变成谁，cost选取的删除和添加不同
 class Solution:
     def minDistance(self , str1: str, str2: str, ic: int, dc: int, rc: int) -> int:
         dp=[[0]*(len(str1)+1) for _ in range(len(str2)+1)]
@@ -751,7 +902,7 @@ class Solution:
 1.  跳跃游戏 II
 ```python
 for i in range(len(nums)-2,-1,-1):
-    jump[i]=min([jump[j] for j in range(i+1,min(i+nums[i]+1,len(nums)))])+1
+    jump[i]=min([jump[j] for j in range(i+1,min(i+nums[i]+1,len(nums)))])+1 #反向跳跃选择最短的次数
 return jump[0]
 ```
 ## 买卖股票
@@ -779,7 +930,7 @@ def maxProfit(self, prices: List[int]) -> int:
     dp[0][0] = -prices[0] #第i天手上有股票时的最大收益
     dp[0][1] = 0 #第i天手上无股票时的最大收益
     for i in range(1, length):
-        dp[i][0] = max(dp[i-1][0], dp[i-1][1] - prices[i]) #注意这里是和121. 买卖股票的最佳时机唯一不同的地方
+        dp[i][0] = max(dp[i-1][0], dp[i-1][1] - prices[i]) #注意这里是和121. 买卖股票的最佳时机唯一不同的地方，是上次卖出后的收益-price
         dp[i][1] = max(dp[i-1][1], dp[i-1][0] + prices[i]) #- fee 就是有手续费
     return dp[-1][1]
 ```
@@ -790,20 +941,32 @@ def maxProfit(self, k: int, prices: List[int]) -> int:
         return 0
     dp = [[0] * (2*k+1) for _ in range(len(prices))]
     for j in range(1, 2*k, 2):
-        dp[0][j] = -prices[0]
+        dp[0][j] = -prices[0] # 初始化每个都要第一天就买入
     for i in range(1, len(prices)):
         for j in range(0, 2*k-1, 2):
-            dp[i][j+1] = max(dp[i-1][j+1], dp[i-1][j] - prices[i])
-            dp[i][j+2] = max(dp[i-1][j+2], dp[i-1][j+1] + prices[i])
+            dp[i][j+1] = max(dp[i-1][j+1], dp[i-1][j] - prices[i]) # 奇数次是买入后的钱
+            dp[i][j+2] = max(dp[i-1][j+2], dp[i-1][j+1] + prices[i]) # 偶数次是卖出后的收益
     return dp[-1][2*k]
+```
+### 309. 最佳买卖股票时机含冷冻期
+```python
+class Solution:
+    def maxProfit(self, prices: List[int]) -> int:
+        buy,sell,cool=[0]*len(prices),[0]*len(prices),[0]*len(prices)
+        buy[0]=-prices[0]
+        for i in range(1,len(prices)):
+            buy[i]=max(buy[i-1],cool[i-1]-prices[i])
+            sell[i]=buy[i-1]+prices[i]
+            cool[i]=max(cool[i-1],sell[i-1]) # cool保持上一天的最大值，因为只能在冷冻期后买入，所以cool保持上一天的最大值，同时sell也不需要取max上一天了，因为cool已经保持了最大值了
+        return max(cool[-1],sell[-1])
 ```
 ## 背包
 
 ### 01背包问题
 
-01背包：必须倒序遍历数组。
+01背包：只能选取一次，倒序遍历数组。
 
-完全背包：顺序遍历。
+完全背包：可多次选取，顺序遍历数组。
 
 分割 等和子集、最相似子集：背包大小为和的一半。
 ```python
@@ -814,7 +977,6 @@ def canPartition(nums):
         return False
     else:
         target//=2
-    nums.sort()
     dp=[[0]*(target+1) for _ in range(len(nums)+1)]
     for i in range(len(nums)+1):
         dp[i][0]=1
@@ -866,19 +1028,18 @@ class Solution:
 
 有次数要求就二维数组，或一维数组从后到前更新。
 ```python
-for coin in coins: #零钱兑换问题
+for coin in coins: #零钱兑换问题，组合数
     for i in range(1,amount+1):
         if coin <=i:
             dp[i]+=dp[i-coin]
 
-for i in range(1,target+1):#组合总和
+for i in range(1,target+1):#排列数
     for num in nums:
         if num <=i:
             dp[i]+=dp[i-num]
-
-return dp[-1]
-
-
+```
+#### 1155. 掷骰子的N种方法，排列数
+```python
 class Solution:
     def numRollsToTarget(self, n: int, k: int, target: int) -> int:
         dp=[[0]*(target+1) for _ in range(n)]
@@ -890,11 +1051,38 @@ class Solution:
         #     for m in range(1,min(j,k+1)):
         #         dp[j]+=dp[j-m]    一维dp数组。
         for i in range(1,n):
-            for j in range(1,target+1):
+            for j in range(1,target+1): #先背包后物品
                 for m in range(1,min(j,k+1)): # 不能投和j一样大的数，影响第二维结果
                     dp[i][j]+=dp[i-1][j-m]
                     dp[i][j]%=M
         return dp[-1][-1]%M
+```
+
+#### 139. 单词拆分
+当作完全背包问题，s字符串为背包容量，wordDict为物品
+```python
+class Solution:
+    def wordBreak(self, s: str, wordDict: List[str]) -> bool:
+        '''排列'''
+        dp = [False]*(len(s) + 1)
+        dp[0] = True
+        # 遍历背包
+        for j in range(1, len(s) + 1): # 顺序无关，次数无关，相当于排列数
+            # 遍历单词
+            for word in wordDict: 
+                if j >= len(word):
+                    dp[j] = dp[j] or (dp[j - len(word)] and word == s[j - len(word):j])
+        return dp[len(s)]
+
+class Solution:
+    def wordBreak(self, s: str, wordDict: List[str]) -> bool:
+        dp=[0]*(len(s)+1)
+        dp[0]=1
+        for i in range(len(s)+1):
+            for j in range(i):
+                if dp[j]==1 and s[j:i] in wordDict:
+                    dp[i]=1
+        return True if dp[-1]==1 else False
 ```
 
 
@@ -903,7 +1091,48 @@ class Solution:
 
 转化成01背包，把每个物品扩展Mi次。
 
-## 成环就考虑两种，一不取头，二不取尾
+## 32. 最长有效括号
+```python
+# dp
+class Solution(object):
+    def longestValidParentheses(self, s):
+        length = len(s)
+        if length == 0:
+            return 0
+        dp = [0] * length
+        for i in range(1,length):
+        		#当遇到右括号时，尝试向前匹配左括号
+            if s[i] == ')':
+                pre = i - dp[i-1] -1
+                #如果是左括号，则更新匹配长度
+                if pre>=0 and s[pre] == '(':
+                    dp[i] = dp[i-1] + 2 # 类似回文子串，匹配上向内找长度并+2
+                    #处理独立的括号对的情形 类似()()、()(())
+                    if pre>0:
+                        dp[i] += dp[pre-1] # 前面有独立的合法括号对，则加上前面的长度
+        return max(dp)
+
+# 栈判断合法，groupby计算长度，注意访问时只能用一次list
+class Solution:
+    def longestValidParentheses(self, s: str) -> int:
+        stack=[]
+        leagl=[1]*len(s)
+        for i in range(len(s)):
+            if stack and s[stack[-1]]=="(" and s[i]==")":
+                stack.pop()
+                continue
+            stack.append(i)
+        for l in stack:
+            leagl[l]=0
+        res=0
+        for l,r in itertools.groupby(leagl):
+            n=list(r) # 必须记录，只能访问一次list
+            if l==1 and len(n)>res:
+                res=len(n)
+        return res
+
+```
+## 打家劫舍成环就考虑两种，一不取头，二不取尾
 
 ## 树形后序遍历 dp
 337. 打家劫舍 III
@@ -919,11 +1148,11 @@ def trob(root):
 return max(trob(root))
 ```
 ## 矩阵中的最长递增路径
-dp[i][j]表示以matrix[i][j]结尾的最长递增长度
+dp[i] [j]表示以matrix[i] [j]结尾的最长递增长度
 
-初始dp[i][j]都等于1，若matrix[i][j]四个方向有任意小于它，则可以更新dp[i][j] = max(dp[i][j], 1 + dp[r][c])
+初始dp[i] [j]都等于1，若matrix[i] [j]四个方向有任意小于它，则可以更新dp[ i ] [ j ] = max(dp[i] [j], 1 + dp[r] [c])
 
-我们在计算dp[i][j]之前，必须先把dp[r][c]计算出来。 matrix(r,c)位置的值比matrix（i，j）位置的值小（从if语句看出来的）。所以我们只要保证，先把matrix中值小的位置的dp先算出来，再把值大的位置的dp算出来，倒数第二行的代码就有意义了。所以我们要先排序。
+我们在计算dp[i] [j]之前，必须先把dp[r] [c]计算出来。 matrix(r,c)位置的值比matrix（i，j）位置的值小（从if语句看出来的）。所以我们只要保证，先把matrix中值小的位置的dp先算出来，再把值大的位置的dp算出来，倒数第二行的代码就有意义了。所以我们要先排序。
 ```python
 #dp
 class Solution(object):
@@ -958,13 +1187,11 @@ class Solution:
         def dfs(i, j):
             if lookup[i][j] != 0:
                 return lookup[i][j]
-            # 方法一
             res = 1
             for x, y in [[-1, 0], [1, 0], [0, 1], [0, -1]]:
                 tmp_i = x + i
                 tmp_j = y + j
-                if 0 <= tmp_i < row and 0 <= tmp_j < col and \
-                        matrix[tmp_i][tmp_j] > matrix[i][j]:
+                if 0 <= tmp_i < row and 0 <= tmp_j < col and matrix[tmp_i][tmp_j] > matrix[i][j]:
                     res = max(res, 1 + dfs(tmp_i, tmp_j))
             lookup[i][j] = max(res, lookup[i][j])
             return lookup[i][j]
@@ -980,11 +1207,11 @@ class Solution:
 
 
 
-每一步都应该在第 dp[k-1][t-1] + 1 层丢鸡蛋。
+每一步都应该在第 dp[k-1] [t-1] + 1 层丢鸡蛋。
 
-第一,如果蛋碎了,那么我们一定能用k-1个鸡蛋用m-1步测出下面的dp[k-1][m-1]层楼。
+第一,如果蛋碎了,那么我们一定能用k-1个鸡蛋用m-1步测出下面的dp[k-1] [m-1]层楼。
 
-第二,如果蛋没碎,最多可以测出上面的dp[k][m-1]层楼(能测出的层数对于上下来说一样)
+第二,如果蛋没碎,最多可以测出上面的dp[k] [m-1]层楼(能测出的层数对于上下来说一样)
 
 dp[k][m]那么总共可以测出dp[k-1][m-1]+dp[k][m-1]+1层楼
 ```python
@@ -1029,8 +1256,7 @@ class Solution:
                             hi = x
                         else:
                             lo = hi = x
-                    ans = 1 + min(max(dp(k - 1, x - 1), dp(k, n - x))
-                                  for x in (lo, hi))
+                    ans = 1 + min(max(dp(k - 1, x - 1), dp(k, n - x)) for x in (lo, hi))
                 memo[k, n] = ans
             return memo[k, n]
 
@@ -1073,13 +1299,14 @@ def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int
          word,deep = search_list.pop(0)
          if word == endWord:
              deep+=1
-             break
+             return deep
          for i in range(len(word)):
              for j in range(26):
                  new_word = word[:i] + chr(ord('a') + j) + word[i+1:]
                  if new_word in wordList:
                      search_list.append((new_word,deep+1))
                      wordList.remove(new_word)
+     
 ```
 
 双向BFS即是选择短的list去bfs
@@ -1146,7 +1373,43 @@ class Solution:
                 heapq.heappush(heap,u*temp)
         return res[-1]
 ```
+## 1293. 网格中的最短路径
+```python
+# 广度优先搜索
+# 本题中，玩家在移动时可以消除障碍物，这会导致网格的结构发生变化，看起来我们需要在广度优先搜索时额外存储网格的变化。但实际上，由于玩家在最短路中显然不会经过同一位置超过一次， 因此最多消除 k 个障碍物等价于最多经过 k 个障碍物。
 
+# 这样我们就可以使用三元组（x，y，rest）表示一个搜索状态，其中（x，y）表示玩家的位置，rest 表示玩家还可以经过 rest 个障碍物，它的值必须为非负整数。对于当前的状态 (x，y，rest），它可以向最多四个新状态进行搜索，即将玩家（x，y）向四个方向移动一格。假设移动的方向为（dx，dy)，那么玩家的新位置为 (mx + dx，my + dy）。如果该位置为障碍物，那么新的状态为（mx + dx， my + dy， rest - 1），否则新的状态为 (mx + dx， my + dy， rest）。我们从初始状态（0，0，k）开始搜索，当我们第一次到达状态 (m 1，n-1，k’），其中k’是任意非负整数时，就得到了从左上角（0，0) 到右下角 (m - 1，n - 1)且最多经过 k 个障碍物的最短路径。
+
+# 此外，我们还可以对搜索空间进行优化。注意到题目中k 的上限为m*n，但考虑一条从 （0，0）向下走到 （m - 1，0 再向右走到（m - 1，n -1)的路径，它经过了m + n -1 个位置，其中起点 (0， 和终点（m - 1，n- 1)没有障碍物，那么这条路径上最多只会有m+n-3 个障碍物。因此我们可以将k 的值设置为m+n -3 与其本身的较小值 min(k，m+n-3），将广度优先搜索的时间复杂度从 O(MNK)降低至 O(MN* min(M + N，K))。
+class Solution:
+    def shortestPath(self, grid: List[List[int]], k: int) -> int:
+        m, n = len(grid), len(grid[0])
+        if m == 1 and n == 1:
+            return 0
+        
+        k = min(k, m + n - 3)
+        visited = set([(0, 0, k)])
+        q = collections.deque([(0, 0, k)])
+
+        step = 0
+        while len(q) > 0:
+            step += 1
+            cnt = len(q)
+            for _ in range(cnt):
+                x, y, rest = q.popleft()
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < m and 0 <= ny < n:
+                        if grid[nx][ny] == 0 and (nx, ny, rest) not in visited:
+                            if nx == m - 1 and ny == n - 1:
+                                return step
+                            q.append((nx, ny, rest))
+                            visited.add((nx, ny, rest))
+                        elif grid[nx][ny] == 1 and rest > 0 and (nx, ny, rest - 1) not in visited:
+                            q.append((nx, ny, rest - 1))
+                            visited.add((nx, ny, rest - 1))
+        return -1
+```
 # 递归/回溯/dfs
 https://lyl0724.github.io/2020/01/25/1/ 
 ## 组合总数（可重复/不可重复，可多次存取/不可多次存取）
@@ -1168,7 +1431,7 @@ class Solution:
                 #     continue      去重，回溯前面用过了
                 nums.append(candidates[j]) 
                 dfs(candidates,nums,target,j) #可以重复使用就可以用j，不能重复就j+1
-                nums.pop(-1)
+                nums.pop()
         dfs(candidates,[],target,0)
         return res
 ```
@@ -1201,6 +1464,41 @@ class Solution: #暴力递归回溯
                 backtrack(nums[:i] + nums[i+1:], tmp + [nums[i]])
         backtrack(nums, [])
         return res
+```
+1.  排列序列，求第k个排列
+```python
+# 暴力递归回溯，基于选取的排列序列是有序的，不可以用基于交换。
+class Solution:
+    def getPermutation(self, n: int, k: int) -> str:
+        res=""
+        num=[str(i) for i in range(1,n+1)]
+        count=0
+        def permute(num,ans):
+            nonlocal res
+            nonlocal count
+            if len(ans)==n:
+                count+=1
+                if count==k:
+                    res=ans
+                return
+            if res:
+                return
+            for i in range(len(num)):
+                permute(num[:i]+num[i+1:],ans+num[i])
+        permute(num,"")
+        return res
+# 每次选择一个数可以确定n-1!个排列，因此可以逐级选择数字。
+class Solution:
+    def getPermutation(self, n: int, k: int) -> str:
+        d = [ factorial(i) for i in range(n-1,-1,-1)]
+        a = [ str(i) for i in range(1,n+1)]
+        k -= 1
+        ans = ""
+        for i in range(n):
+            nth = k // d[i]
+            ans += a.pop(nth)
+            k %= d[i]
+        return ans
 ```
 ## 括号生成
 ```python
@@ -1274,7 +1572,6 @@ class Solution:
 
 class Solution:
     '''记忆化搜索，2进制state记录物品状态，无需used数组'''
-    
     def canPartitionKSubsets(self, nums: List[int], k: int) -> bool:
         @cache # 在一个递归函数上应用 cache 装饰器会提升速度，建议都带上，但是参数不能是数组
         def dfs(state, summ): # state记录物品使用状态，summ是桶的和，站在桶的角度依次选择物品。
@@ -1325,8 +1622,6 @@ class Solution:
 
     def partition(self, s: str) -> List[List[str]]:
         '''
-        递归用于纵向遍历
-        for循环用于横向遍历
         当切割线迭代至字符串末尾，说明找到一种方法
         类似组合问题，为了不重复切割同一位置，需要start_index来做标记下一轮递归的起始位置(切割线)
         '''
@@ -1355,24 +1650,22 @@ class Solution:
 ```python
 class Solution:
     def exist(self, board: List[List[str]], word: str) -> bool:
-        n = len(board)
-        m = len(board[0])
-        len_str = len(word)
-
-        def backtracking(i ,j, p):
-            if p == len_str: return True
-            if i < 0 or i >= n or j < 0 or j >= m: return False
-            if word[p] == board[i][j]:
-                board[i][j] = '0'
-                if backtracking(i-1, j, p+1) or backtracking(i+1, j, p+1) or backtracking(i, j-1, p+1) or backtracking(i, j+1, p+1): return True
-                board[i][j] = word[p]
-            return False
-
-        for i in range(n):
-            for j in range(m):
-                if board[i][j] == word[0]:
-                    if backtracking(i, j, 0): return True
-
+        def dfs(i,j,w):
+            if w==len(word):
+                return True
+            if i<0 or i>len(board)-1 or j<0 or j>len(board[0])-1:
+                return False
+            if word[w]==board[i][j]:
+                board[i][j]="" # 已经使用过的字符不能再使用
+                if dfs(i+1,j,w+1) or dfs(i-1,j,w+1) or dfs(i,j+1,w+1) or dfs(i,j-1,w+1):
+                    return True
+                board[i][j]=word[w]
+            else:
+                return False
+        for i in range(len(board)):
+            for j in range(len(board[0])):
+                if dfs(i,j,0):
+                    return True
         return False
 ```
 ## 24点
@@ -1455,7 +1748,6 @@ https://leetcode.cn/problems/median-of-two-sorted-arrays/
 ```python
 def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
         n = len(lists)
-
         def merge(left, right):
             if left > right:
                 return
@@ -1465,7 +1757,6 @@ def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
             l1 = merge(left, mid)
             l2 = merge(mid + 1, right)
             return mergeTwoLists(l1, l2)
-
         def mergeTwoLists(l1, l2):
             if not l1 or not l2:
                 return l1 or l2
@@ -1478,6 +1769,8 @@ def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
 ```
 
 https://leetcode.cn/problems/merge-k-sorted-lists/
+
+也可以用堆，要用—— lt —— 改变类的比较
 
 ## 寻找峰值
 规律一：如果nums[i] > nums[i+1]，则在i之前一定存在峰值元素
@@ -1499,89 +1792,6 @@ class Solution:
 ```
 
 
-## 最长上升子序列 二分/dp
-```python
-#
-# retrun the longest increasing subsequence
-# @param arr int整型一维数组 the array
-# @return int整型一维数组
-#
-class Solution:
-    def LIS(self , arr ):
-        
-        # 1. 动态规划，超时
-        if len(arr) < 2:
-            return arr
-        
-        dp = [1] * len(arr)
-        for i in range(1, len(arr)):
-            for j in range(i):
-                if arr[i] > arr[j]: #依次找比前面大的数，再加上去后和现在最长相比
-                    dp[i] = dp[j] + 1
-        
-        ansLen = max(dp)
-        ansVec = []
-        for i in range(len(arr)-1, -1, -1):
-            if dp[i] == ansLen:
-                ansVec.insert(0, arr[i])
-                ansLen -= 1
-                
-        return ansVec
-        
-        
-        # 2. 贪心 + 二分
-        if len(arr) < 2:
-            return arr
-        
-        ansVec = [arr[0]] # 记录以某一元素结尾的最长递增子序列，初始化为数组第一位元素
-        maxLen = [1] # 记录下标i处最长递增子序列的长度，初始化为[1](下标0此时只有一个数字，长度为1)
-        
-        for num in arr[1:]:
-            if num > ansVec[-1]:
-                ansVec.append(num)  # 更新以num为结尾元素的最长递增子序列
-                maxLen.append(len(ansVec))  # 同时更新此时最长递增子序列的长度
-            else:
-                """
-                for i in range(len(ansVec)):
-                    if ansVec[i] >= num:
-                        ansVec[i] = num
-                        maxLen.append(i+1)
-                        break
-                """
-                # 二分查找第一个比num大的数字，替换
-                # 此时以该元素为结尾的最长递增子序列的长度为其在ansVec中的下标+1
-                left, right = 0, len(ansVec)-1
-                while left < right:
-                    mid = (left + right) // 2
-                    if ansVec[mid] < num:
-                        left = mid+1
-                    elif ansVec[mid] == num:
-                        left = mid
-                        break
-                    else:
-                        if ansVec[mid-1] < num:
-                            left = mid
-                            break
-                        else:
-                            right = mid-1
-                ansVec[left] = num
-                maxLen.append(left+1)
-        
-        # ansVec不一定是最后结果，求解按字典序最小的结果
-        # 此时我们知道最长长度为ansLen，从后向前遍历maxLen，
-        # 遇到第一个maxLen[i]==ansLen的下标i处元素arr[i]即为所求，
-        # 例：
-        # [1,2,8,6,4] -> maxLen [1,2,3,3,3] -> ansLen=3
-        # [1,2,8] -> [1,2,6] -> [1,2,4] 长度一致的答案，字典序越小越靠后
-        ansLen = len(ansVec)
-        for i in range(len(arr)-1, -1, -1):
-            if maxLen[i] == ansLen:
-                ansVec[ansLen-1] = arr[i]
-                ansLen -= 1
-                
-        return ansVec
-```
-
 ## 410. 分割数组的最大值
 结果必定落在【max（nums）， sum（nums）】这个区间内，因为左端点对应每个单独的元素构成一个子数组，右端点对应所有元素构成一个子数组。
 
@@ -1599,11 +1809,9 @@ class Solution(object):
             temp, cnt = 0, 1
             for num in nums:
                 temp += num
-                # cnt += 1
                 if temp > mid:#说明当前这个子数组的和已经超过了允许的最大值mid，需要把当前元素放在下一个子数组里
                     temp = num
                     cnt += 1
-            # print temp, cnt, mid
             #------以上在模拟划分子数组的过程
             if cnt > m: #说明分出了比要求多的子数组，多切了几刀，说明mid应该加大，这样能使子数组的个数减少
                 lo = mid + 1
@@ -1647,6 +1855,7 @@ class Solution:
             return True
 ```
 ## 395. 至少有 K 个重复字符的最长子串
+
 ```python
 class Solution:
     def longestSubstring(self, s: str, k: int) -> int:
@@ -1654,9 +1863,7 @@ class Solution:
             return 0 # 如果s为空字符长，那么返回长度0
         for c in set(s):
             if s.count(c)<k: # 只要有一个字符不满足要求，那么整个字符串就不满足要求
-                s = s.replace(c,'#') # 可以不用replace直接分割。
-            if '#' in s:
-                return max([self.longestSubstring(t,k) for t in s.split('#')])
+                return max([self.longestSubstring(t,k) for t in s.split(c)])
             # 如果字符串中存在数量小于k的字符，那么该字符串必不合格，按照个数小于k的字符划分字符串，对划分的字符串继续递归判断
             
         return len(s) # 如果s中所有字符个数都大于k，返回s的长度
@@ -1666,6 +1873,7 @@ class Solution:
 先让快指针走N步，再快慢一起走，快走到头则慢在倒数第N个结点处
 
 ## 链表排序
+
 ```python
 # 快排思想，把小于基准值的放在左边，大于基准值的放在右边，基准值放在中间
 def sortList(head):
@@ -1693,10 +1901,47 @@ def sortList(head):
         return head.next
     sort(pre,None)
     return pre.next
+
+# 归并排序，分治法，将链表分为两半，对两半分别排序，然后合并两个排序后的链表
+class Solution:
+    def sortList(self, head: Optional[ListNode]) -> Optional[ListNode]:
+        def merge(ll,rl): # 合并两个有序链表
+            if ll==None:
+                return rl
+            if rl==None:
+                return ll
+            if ll.val>rl.val:
+                rl.next=merge(ll,rl.next)
+                return rl
+            else:
+                ll.next=merge(ll.next,rl)
+                return ll
+
+        if head==None or head.next==None:
+            return head
+        fast,slow=head,head
+        while fast and fast.next and fast.next.next:
+            fast=fast.next.next
+            slow=slow.next
+        rhead=slow.next
+        slow.next=None
+        llist=self.sortList(head)
+        rlist=self.sortList(rhead)
+        return merge(llist,rlist)
 ```
 
 ## k个一组翻转链表
 ```python
+# 24. 两两交换链表中的节点
+class Solution:
+    def swapPairs(self, head: ListNode) -> ListNode:
+        if head==None or head.next==None:
+            return head
+        next=head.next
+        head.next=self.swapPairs(next.next) # 思想相同
+        next.next=head
+        return next
+
 class Solution:
     def reverseKGroup(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:
         tnode=head
@@ -1720,7 +1965,6 @@ class Solution:
 
 将快指针放回head，快慢指针以相同的步进移动，最终，会在环的入口相遇，慢指针再走（a+b）的长度会回到原点，只走a的长度会回到环的入口，因此再从head同时和慢指针开始走就行了
 
-你吹过我来时的风，我回到故乡，竟再次在原点相遇
 ```python
 class Solution:
     def detectCycle(self, head: ListNode) -> ListNode:
@@ -1750,8 +1994,8 @@ class Solution:
     def minWindow(self, s: str, t: str) -> str:
         char_count=defaultdict(int)
         for char in t:
-            char_count[char]+=1
-        t_len=len(t)  # 统计当前区间包含t中字母的个数
+            char_count[char]+=1 # 统计当前区间包含t中字母的个数
+        t_len=len(t)  
         min_left,min_right=0,len(s)
         left=0
         res=''
@@ -1785,6 +2029,9 @@ class Solution(object):
         return ret
 ```
 ## 209. 长度最小的子数组
+
+与862. 和至少为 K 的最短子数组完全不是一种题，因为没有负数，只需要考虑递增情况。
+
 ```python
 class Solution:
     def minSubArrayLen(self, s: int, nums: List[int]) -> int:
@@ -1799,33 +2046,33 @@ class Solution:
                 Sum -= nums[index]
                 index += 1
         return 0 if res==float("inf") else res
-
 ```
-862. 和至少为 K 的最短子数组
 
-存在负数，完全不是一类题。
-
-1. 当preSum[x2] <= preSum[x1]（其中x1 < x2）时，表明x1到x2之间的元素的和是负数或0，那么就是当preSum[xn] - preSum[x1] >= K则必然有preSum[xn] - preSum[x2] >= K，那么这个时候我们只计算xn - x2即可（x1到x2之间的元素可以全部跳过了，耶！），就不需要计算xn - x1了，因为后者一定是更大的，不满足我们要选最小的条件。
-
-2. 另一个角度，当preSum[x2] - preSum[x1] >= K时，x1就可以跳过了，为什么呢？因为x1到x2已经满足了大于K，再继续从x1开始向后再早，也不会再有比x2距离x1更近的了，毕竟我们要求的是最小的x2 - x1。
-
+## 567. 字符串的排列
+给你两个字符串 s1 和 s2 ，写一个函数来判断 s2 是否包含 s1 的排列。如果是，返回 true ；否则，返回 false 。
 ```python
-class Solution:
-    def shortestSubarray(self, nums: List[int], k: int) -> int:
-        pre_sum=[0]*(len(nums)+1)
-        q=[]
-        res=len(nums)+1
-        for i in range(len(nums)):
-            pre_sum[i+1]=pre_sum[i]+nums[i]
-        for i in range(len(nums)+1):
-            while q and pre_sum[q[-1]]>=pre_sum[i]:
-                q.pop()
-            while q and pre_sum[i]-pre_sum[q[0]]>=k:
-                if i-q[0]<res:
-                    res=i-q[0]
-                q.pop(0)
-            q.append(i)
-        return res if res!=len(nums)+1 else -1
+class Solution(object):
+    def checkInclusion(self, s1, s2):
+        l1, l2 = len(s1), len(s2)
+        c1 = collections.Counter(s1)
+        c2 = collections.Counter()
+        cnt = 0 #统计变量，全部26个字符，频率相同的个数，当cnt==s1字母的个数的时候，就是全部符合题意，返回真
+        p = q = 0 #滑动窗口[p,q]
+        while q < l2:
+            c2[s2[q]] += 1
+            if c1[s2[q]] == c2[s2[q]]: #对于遍历到的字母，如果出现次数相同
+                cnt += 1               #统计变量+1
+            if cnt == len(c1):         #判断结果写在前面，此时证明s2滑动窗口和s1全部字符相同，返回真
+                return True
+            q += 1                     #滑动窗口右移
+            if q - p + 1 > l1:         #这是构造第一个滑动窗口的特殊判断，里面内容是维护边界滑动窗口
+                if c1[s2[p]] == c2[s2[p]]:    #判断性的if写在前面，因为一旦频率变化，这个统计变量就减1
+                    cnt -= 1
+                c2[s2[p]] -= 1                #字典哈希表移除最前面的字符
+                if c2[s2[p]] == 0:            #由于counter特性，如果value为0，必须删除它
+                    del c2[s2[p]]
+                p += 1                        #最前面的下标右移动
+        return False
 ```
 # 双指针
 ## 两数之和
@@ -1860,11 +2107,217 @@ class Solution:
             hashmap[num] = index
         return None
 ```
-
-3数之和也可以用双指针，先固定一个再当成2数
-
-# 接雨水
+## 三数之和
+三数之和也可以用双指针，先固定一个再当成两数
 ```python
+class Solution:
+    def threeSum(self, nums: List[int]) -> List[List[int]]:
+        ans = []
+        n = len(nums)
+        nums.sort()
+        for i in range(n):
+            left = i + 1
+            right = n - 1
+            if nums[i] > 0:
+                break
+            if i >= 1 and nums[i] == nums[i - 1]: # 去重
+                continue
+            while left < right:
+                total = nums[i] + nums[left] + nums[right]
+                if total > 0:
+                    right -= 1
+                elif total < 0:
+                    left += 1
+                else:
+                    ans.append([nums[i], nums[left], nums[right]])
+                    while left != right and nums[left] == nums[left + 1]: left += 1 # 去重
+                    while left != right and nums[right] == nums[right - 1]: right -= 1 # 去重
+                    left += 1
+                    right -= 1
+        return ans
+```
+## 16. 最接近的三数之和
+```python
+class Solution:
+    def threeSumClosest(self, nums: List[int], target: int) -> int:
+        nums, r, end = sorted(nums), float('inf'), len(nums) - 1
+        for c in range(len(nums) - 2):
+            i, j = max(c + 1, bisect.bisect_left(nums, target - nums[end] - nums[c], c + 1, end) - 1), end
+            while r != target and i < j:
+                s = nums[c] + nums[i] + nums[j]
+                r, i, j = min(r, s, key=lambda x: abs(x - target)), i + (s < target), j - (s > target) # 用abs(x - target)找出最接近target的值
+        return r
+```
+## 18. 四数之和
+```python
+class Solution:
+    def fourSum(self, nums: List[int], target: int) -> List[List[int]]:
+        nums=sorted(nums)
+        res=[]
+        for i in range(len(nums)-3): 
+            if i>0 and nums[i] == nums[i-1]: # 去重方式与三数之和一样
+                continue
+            for j in range(i+1,len(nums)-2):
+                if j>i+1 and nums[j] == nums[j-1]: # 去重方式与三数之和一样
+                    continue
+                r=len(nums)-1
+                l=j+1
+                while l<r:
+                    sum=nums[i]+nums[j]+nums[l]+nums[r]
+                    if sum==target:
+                        res.append([nums[i],nums[j],nums[l],nums[r]])
+                        while l<r and nums[l]==nums[l+1]: # 去重方式与三数之和一样
+                            l+=1
+                        while l<r and nums[r]==nums[r-1]: # 去重方式与三数之和一样
+                            r-=1
+                        l+=1
+                        r-=1
+                        continue
+                    l+=sum<target
+                    r-=sum>target
+        return res
+```
+# 栈
+## 232. 用栈实现队列
+两个栈。一个负责出一个负责入
+## 394. 字符串解码
+```python
+class Solution:
+    def decodeString(self, s: str) -> str:
+        stack = []  # (str, int) 记录左括号之前的字符串和左括号外的上一个数字
+        num = 0
+        res = ""  # 实时记录当前可以提取出来的字符串
+        for c in s:
+            if c.isdigit():
+                num = num * 10 + int(c)
+            elif c == "[":
+                stack.append((res, num))
+                res, num = "", 0
+            elif c == "]":
+                top = stack.pop()
+                res = top[0] + res * top[1]
+            else:
+                res += c
+        return res
+
+# 递归
+class Solution:
+    def decodeString(self, s: str) -> str:
+        def dfs(s, i):
+            res, multi = "", 0
+            while i < len(s):
+                if '0' <= s[i] <= '9':
+                    multi = multi * 10 + int(s[i])
+                elif s[i] == '[':
+                    i, tmp = dfs(s, i + 1)
+                    res += multi * tmp
+                    multi = 0
+                elif s[i] == ']':
+                    return i, res
+                else:
+                    res += s[i]
+                i += 1
+            return res
+        return dfs(s,0)
+```
+## 单调栈
+
+### 最长上升子序列 单调栈+贪心+二分/dp
+```python
+class Solution:
+    def LIS(self , arr ):
+        
+        # 1. 动态规划，超时
+        if len(arr) < 2:
+            return arr
+        
+        dp = [1] * len(arr)
+        for i in range(1, len(arr)):
+            for j in range(i):
+                if arr[i] > arr[j]: #依次找比前面大的数，再加上去后和现在最长相比
+                    dp[i] = dp[j] + 1
+        
+        ansLen = max(dp)
+        ansVec = []
+        for i in range(len(arr)-1, -1, -1):
+            if dp[i] == ansLen:
+                ansVec.insert(0, arr[i])
+                ansLen -= 1
+                
+        return ansVec
+        
+        
+        # 2. 单调栈 + 贪心 + 二分
+        if len(arr) < 2:
+            return arr
+        
+        ansVec = [arr[0]] # 记录以某一元素结尾的最长递增子序列，初始化为数组第一位元素
+        maxLen = [1] # 记录下标i处最长递增子序列的长度，初始化为[1](下标0此时只有一个数字，长度为1)
+        
+        for num in arr[1:]:
+            if num > ansVec[-1]:
+                ansVec.append(num)  # 更新以num为结尾元素的最长递增子序列
+                maxLen.append(len(ansVec))  # 同时更新此时最长递增子序列的长度
+            else:
+                """
+                for i in range(len(ansVec)):
+                    if ansVec[i] >= num:
+                        ansVec[i] = num
+                        maxLen.append(i+1)
+                        break
+                """
+                # 二分查找第一个比num大的数字，替换
+                # 此时以该元素为结尾的最长递增子序列的长度为其在ansVec中的下标+1
+                # 可以用bisect
+                left, right = 0, len(ansVec)-1
+                while left < right:
+                    mid = (left + right) // 2
+                    if ansVec[mid] < num:
+                        left = mid+1
+                    elif ansVec[mid] == num:
+                        left = mid
+                        break
+                    else:
+                        if ansVec[mid-1] < num:
+                            left = mid
+                            break
+                        else:
+                            right = mid-1
+                ansVec[left] = num
+                maxLen.append(left+1)
+        
+        # ansVec不一定是最后结果，求解按字典序最小的结果
+        # 此时我们知道最长长度为ansLen，从后向前遍历maxLen，
+        # 遇到第一个maxLen[i]==ansLen的下标i处元素arr[i]即为所求，
+        # 例：
+        # [1,2,8,6,4] -> maxLen [1,2,3,3,3] -> ansLen=3
+        # [1,2,8] -> [1,2,6] -> [1,2,4] 长度一致的答案，字典序越小越靠后
+        ansLen = len(ansVec)
+        for i in range(len(arr)-1, -1, -1):
+            if maxLen[i] == ansLen:
+                ansVec[ansLen-1] = arr[i]
+                ansLen -= 1
+                
+        return ansVec
+```
+### 接雨水
+```python
+# 单调栈 保持栈内递减，遇到大于栈顶的情况说明有水，计算宽度和高度，加入雨水量。
+# 本质上是找两侧大于当前柱子的高度的下标
+class Solution:
+    def trap(self, height: List[int]) -> int:
+        stack=[0]
+        res=0
+        for i in range(1,len(height)):
+            while stack and height[i]>=height[stack[-1]]:
+                mid=stack.pop()
+                if stack:
+                    h=min(height[i],height[stack[-1]])-height[mid]
+                    w=i-stack[-1]-1
+                    res+=h*w
+            stack.append(i)
+        return res
+# dp
 class Solution:
     def trap(self, height: List[int]) -> int:
         left=[0 for _ in range(len(height))]
@@ -1933,63 +2386,144 @@ class Solution:
                     heapq.heappush(hp, (max(h, heightMap[nr][nc]), nr, nc))
         return ans
 ```
+### 84. 柱状图中最大的矩形
+```python
+# 与接雨水相同，单调栈内递增，找到小于栈顶的情况，将栈顶元素出栈，并计算面积
+# 本质上是找两侧小于当前柱子的高度的下标
+class Solution:
+    def largestRectangleArea(self, heights: List[int]) -> int:
+        heights.insert(0, 0) #防止第一个就不是递增
+        heights.append(0)   #防止一直递增
+        stack = [0]
+        result = 0
+        for i in range(1, len(heights)):
+            while stack and heights[i] < heights[stack[-1]]:
+                mid_height = heights[stack[-1]]
+                stack.pop()
+                if stack:
+                    # area = width * height
+                    area = (i - stack[-1] - 1) * mid_height
+                    result = max(area, result)
+            stack.append(i)
+        return result
+```
+### 85. 最大矩形
+```python
+# 每一层当作一个柱状图，找当前层上方最大矩形面积。
+class Solution:
+    def maximalRectangle(self, matrix: List[List[str]]) -> int:
+        hight=[[0]*(len(matrix[0])+2) for _ in range(len(matrix))]
+        for j in range(1,len(matrix[0])+1):
+            if matrix[0][j-1]=="1":
+                hight[0][j]=1
+        for i in range(1,len(matrix)):
+            for j in range(1,len(matrix[0])+1):
+                if matrix[i][j-1]=="1":
+                    hight[i][j]=hight[i-1][j]+1
+        res=0
+        for h in hight:
+            stack=[0]
+            for i in range(1,len(h)):
+                while stack and h[stack[-1]]>h[i]:
+                    mid_h=h[stack.pop()]
+                    if stack:
+                        res=max(res, mid_h*(i-stack[-1]-1))
+                stack.append(i)
+        return res
+```
+### 402. 移掉 K 位数字
+```python
+class Solution:
+    def removeKdigits(self, num: str, k: int) -> str:
+        stack = []
+        for d in num:
+            while stack and k and stack[-1] > d: #保证栈的有序递增。
+                stack.pop()
+                k -= 1
+            stack.append(d)
+        if k > 0:
+            stack = stack[:-k]
+        return ''.join(stack).lstrip('0') or "0"
+```
+
+### 503. 下一个更大元素 II
+```python
+# 在遍历的过程中模拟走了两遍nums
+class Solution:
+    def nextGreaterElements(self, nums: List[int]) -> List[int]:
+        dp = [-1] * len(nums)
+        stack = []
+        for i in range(len(nums)*2):
+            while(len(stack) != 0 and nums[i%len(nums)] > nums[stack[-1]]):
+                    dp[stack[-1]] = nums[i%len(nums)]
+                    stack.pop()
+            stack.append(i%len(nums))
+        return dp
+```
+
+# 前缀和
+利用前缀和记忆化搜索，一般是和子数组有关的问题
+## 560. 和为 K 的子数组
+通过前缀和将数组改变成两数和问题，因为pre1-pre2=k，所以知道pre1可以直接由pre1-k查询pre2。注意字典里pre的数目
+```python
+class Solution:
+    def subarraySum(self, nums: List[int], k: int) -> int:
+        dic={0:1}
+        pre=0
+        res=0
+        for i in range(len(nums)):
+            pre+=nums[i]
+            res+=dic.get(pre-k,0)
+            dic[pre]=dic.get(pre,0)+1 # 必须在查询后面加入字典，避免k=0时重复查询。同时如果有多次可以+1
+        return res
+```
+
+## 862. 和至少为 K 的最短子数组
+
+存在负数，完全不是一类题。
+
+1. 当preSum[x2] <= preSum[x1]（其中x1 < x2）时，表明x1到x2之间的元素的和是负数或0，那么就是当preSum[xn] - preSum[x1] >= K则必然有preSum[xn] - preSum[x2] >= K，那么这个时候我们只计算xn - x2即可（x1到x2之间的元素可以全部跳过了，耶！），就不需要计算xn - x1了，因为后者一定是更大的，不满足我们要选最小的条件。
+
+2. 另一个角度，当preSum[x2] - preSum[x1] >= K时，x1就可以跳过了，为什么呢？因为x1到x2已经满足了大于K，再继续从x1开始向后再找，也不会再有比x2距离x1更近的了，毕竟我们要求的是最小的x2 - x1。
+
+```python
+class Solution:
+    def shortestSubarray(self, nums: List[int], k: int) -> int:
+        pre_sum=[0]*(len(nums)+1)
+        q=[]
+        res=len(nums)+1
+        for i in range(len(nums)):
+            pre_sum[i+1]=pre_sum[i]+nums[i]
+        for i in range(len(nums)+1):
+            while q and pre_sum[q[-1]]>=pre_sum[i]:
+                q.pop()
+            while q and pre_sum[i]-pre_sum[q[0]]>=k:
+                if i-q[0]<res:
+                    res=i-q[0]
+                q.pop(0)
+            q.append(i)
+        return res if res!=len(nums)+1 else -1
+```
 
 # 最长回文子序列
-```cpp
-#双指针法
-class Solution {
-public:
-    int left = 0;
-    int right = 0;
-    int maxLength = 0;
-    string longestPalindrome(string s) {
-        int result = 0;
-        for (int i = 0; i < s.size(); i++) {
-            extend(s, i, i, s.size()); // 以i为中心
-            extend(s, i, i + 1, s.size()); // 以i和i+1为中心
-        }
-        return s.substr(left, maxLength);
-    }
-    void extend(const string& s, int i, int j, int n) {
-        while (i >= 0 && j < n && s[i] == s[j]) {
-            if (j - i + 1 > maxLength) {
-                left = i;
-                right = j;
-                maxLength = j - i + 1;
-            }
-            i--;
-            j++;
-        }
-    }
-};
-#动态规划
-class Solution {
-public:
-    string longestPalindrome(string s) {
-        vector<vector<int>> dp(s.size(), vector<int>(s.size(), 0));
-        int maxlenth = 0;
-        int left = 0;
-        int right = 0;
-        for (int i = s.size() - 1; i >= 0; i--) {
-            for (int j = i; j < s.size(); j++) {
-                if (s[i] == s[j]) {
-                    if (j - i <= 1) { // 情况一 和 情况二
-                        dp[i][j] = true;
-                    } else if (dp[i + 1][j - 1]) { // 情况三
-                        dp[i][j] = true;
-                    }
-                }
-                if (dp[i][j] && j - i + 1 > maxlenth) {
-                    maxlenth = j - i + 1;
-                    left = i;
-                    right = j;
-                }
-            }
 
-        }
-        return s.substr(left, right - left + 1);
-    }
-};
+```python
+# 回文子串要求连续，只需要判断内部是否回文即可。
+class Solution(object):
+    def longestPalindromeSubseq(self, s):
+        len_s = len(s)
+        dp = [[0] * len_s for _ in range(len_s)]
+        # base case 每个字符可以是一个回文串
+        for i in range(len_s):
+            dp[i][i]=1
+        for i in range(len_s-1,-1,-1):
+            for j in range(i+1,len_s):
+                #长度加2
+                if s[i]==s[j]:
+                    dp[i][j] = dp[i+1][j-1]+2
+                else:
+                    dp[i][j]=max(dp[i+1][j],dp[i][j-1]) #不匹配找不包含这个字符的最长回文串
+        return dp[0][-1]
 ```
 # 最长公共前缀
 ```python
@@ -2049,7 +2583,7 @@ def lengthOfLongestSubstring(self, s: str) -> int:
 
 (1) 初始化两个栈：运算符栈S1和储存中间结果的栈S2；
 
-(2) 从右至左扫描中缀表达式；
+(2) **从右至左扫描中缀表达式**；
 
 (3) 遇到操作数时，将其压入S2；
 
@@ -2172,23 +2706,8 @@ class Solution:
         
         return int(x0)
 ```
-# 232. 用栈实现队列
-两个栈。一个负责出一个负责入
 
-# 560. 和为 K 的子数组
-通过前缀和将数组改变成两数和问题，因为pre1-pre2=k，所以知道pre1可以直接由pre1-k查询pre2。注意字典里pre的数目
-```python
-class Solution:
-    def subarraySum(self, nums: List[int], k: int) -> int:
-        dic={0:1}
-        pre=0
-        res=0
-        for i in range(len(nums)):
-            pre+=nums[i]
-            res+=dic.get(pre-k,0)
-            dic[pre]=dic.get(pre,0)+1 # 必须在查询后面加入字典，避免k=0时重复查询。同时如果有多次可以+1
-        return res
-```
+
 
 # 179. 最大数
 字典排序
@@ -2204,3 +2723,4 @@ class Solution:
             s += str(x)
         return str(int(s))
 ```
+

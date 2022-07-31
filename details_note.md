@@ -246,8 +246,8 @@ T5不仅去掉了Layer Normalization的center操作，它把每一层的bias项�
 
 T5模型出自文章《Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer》，里边用到了一种更简单的相对位置编码。思路依然源自展开式(7)，如果非要分析每一项的含义，那么可以分别理解为“输入-输入”、“输入-位置”、“位置-输入”、“位置-位置”四项注意力的组合。如果我们认为输入信息与位置信息应该是独立（解耦）的，那么它们就不应该有过多的交互，所以“输入-位置”、“位置-输入”两项Attention可以删掉，剩下的位置编码换成相对位置编码我们可以直接将它作为参数训练出来。它仅仅是在Attention矩阵的基础上加一个可训练的偏置项而已。
 
-
 ## Bert改进
+
 随机mask，增大参数量，取消NSP，增大Batch_size （RoBERTa）
 
 修改为PLM，预训练任务改为PLM位置相关（解决未来文本的信息泄漏问题，没有 train-test skewness，拥有文本生成的能力）（XLNet）
@@ -725,7 +725,7 @@ faiss就是一个相似向量查找的数据库。
 $$
 L=\frac{1}{N}\left(\sum_{y_{i}=1}^{m}-\alpha \log (\hat{p})+\sum_{y_{i}=0}^{n}-(1-\alpha) \log (1-\hat{p})\right)
 $$
-其中 $\frac{\alpha}{1-\alpha}=\frac{n}{m}$, 即权重的大小根据正负样本的分布进行设置。
+其中 $\frac{\alpha}{1-\alpha}=\frac{n}{m}$, 即**权重的大小根据正负样本的分布进行设置**。
 ## 解决
 focal loss针对分类问题中类别不平衡、分类难度差异的一个 loss。
 
